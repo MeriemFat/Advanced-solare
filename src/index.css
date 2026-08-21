@@ -1,0 +1,187 @@
+@import "./components/Adminpage/admin-responsive.css";
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Navbar Responsive Styles */
+@media (max-width: 1024px) {
+  .responsive-nav {
+    padding: 14px 20px !important;
+    top: 10px !important;
+  }
+  
+  .responsive-links {
+    gap: 20px !important;
+  }
+  
+  .responsive-logo {
+    width: 100px !important;
+  }
+  
+  .responsive-contact-button {
+    font-size: 16px !important;
+    padding: 10px 16px !important;
+  }
+  
+  .responsive-link h3 {
+    font-size: 14px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .responsive-nav {
+    flex-direction: column !important;
+    gap: 15px !important;
+    padding: 12px 15px !important;
+    top: 10px !important;
+  }
+  
+  .responsive-links {
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 15px !important;
+  }
+  
+  .responsive-logo {
+    width: 90px !important;
+  }
+  
+  .responsive-contact-button {
+    font-size: 14px !important;
+    padding: 8px 14px !important;
+  }
+  
+  .responsive-link h3 {
+    font-size: 13px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .responsive-nav {
+    width: 95% !important;
+  }
+  
+  .responsive-links {
+    gap: 10px !important;
+  }
+  
+  .responsive-logo {
+    width: 80px !important;
+  }
+  
+  .responsive-contact-button {
+    font-size: 13px !important;
+    padding: 7px 12px !important;
+  }
+  
+  .responsive-link h3 {
+    font-size: 12px !important;
+  }
+}
+
+@media (max-width: 1024px) {
+  .responsive-hero-content {
+    flex-direction: column !important;
+  }
+  
+  .responsive-portal-grid,
+  .responsive-contact-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .responsive-hero-title {
+    font-size: 2.5rem !important;
+  }
+  
+  .responsive-hero-description {
+    font-size: 1rem !important;
+  }
+  
+  .responsive-feature-card {
+    font-size: 16px !important;
+    padding: 14px 16px !important;
+  }
+  
+  .responsive-hero-buttons {
+    flex-direction: column !important;
+    width: 100% !important;
+  }
+  
+  .responsive-primary-button,
+  .responsive-secondary-button {
+    width: 100% !important;
+    text-align: center !important;
+  }
+  
+  .responsive-services-grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .responsive-portal-grid,
+  .responsive-contact-grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .responsive-portal-title {
+    font-size: 2rem !important;
+  }
+  
+  .responsive-contact-heading {
+    font-size: 1.8rem !important;
+  }
+  
+  .responsive-bottom-message {
+    flex-direction: column !important;
+    gap: 20px !important;
+  }
+  
+  .responsive-hero-overlay {
+    padding: 120px 5% 40px !important;
+  }
+  
+  .responsive-contact-info-section,
+  .responsive-portal-overlay {
+    padding: 30px 20px !important;
+    margin: 30px auto !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .responsive-hero-title {
+    font-size: 2rem !important;
+  }
+  
+  .responsive-portal-title {
+    font-size: 1.6rem !important;
+  }
+  
+  .responsive-hero-badge,
+  .responsive-portal-badge {
+    font-size: 12px !important;
+    padding: 10px 16px !important;
+  }
+}
+
+/* Footer Responsive Styles */
+@media (max-width: 768px) {
+  .responsive-footer {
+    padding: 15px !important;
+  }
+  
+  .responsive-footer p {
+    font-size: 12px !important;
+  }
+}
