@@ -46,8 +46,29 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
+import User from "./models/User.js";
+
+async function ensureSuperAdmin() {
+  try {
+    const email = "wa.bjaoui@gmail.com";
+    const existing = await User.findOne({ email });
+    if (!existing) {
+      await User.create({
+        name: "Wassim Bjaoui",
+        email,
+        password: "wassimADV2026",
+        role: "admin",
+      });
+      console.log("👑 Super Admin (wa.bjaoui@gmail.com) initialisé avec succès");
+    }
+  } catch (err) {
+    console.error("Super Admin check error:", err.message);
+  }
+}
+
 connectDB()
-  .then(() => {
+  .then(async () => {
+    await ensureSuperAdmin();
     app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
   })
   .catch((err) => {
