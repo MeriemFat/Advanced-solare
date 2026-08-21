@@ -9,7 +9,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "render-build": "npm install && npm run build && cd backend && npm install",
-    "start": "node backend/server.js"
+    "start": "node backend/server.js",
+    "postinstall": "cd backend && npm install"
   },
   "dependencies": {
     "react": "^19.2.7",
