@@ -29,10 +29,10 @@ export async function login(req, res) {
 
   const user = await User.findOne({ email });
   if (!user) {
-    return res.status(401).json({ message: "Aucun compte trouvé avec cet email" });
+    return res.status(401).json({ message: "No account found with this email" });
   }
   if (!(await user.comparePassword(password))) {
-    return res.status(401).json({ message: "Votre mot de passe est incorrect" });
+    return res.status(401).json({ message: "Incorrect password" });
   }
 
   const token = signToken(user);

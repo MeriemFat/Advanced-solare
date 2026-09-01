@@ -1,13 +1,16 @@
 import { useState } from "react";
-import { FaEnvelope, FaLock, FaUserShield } from "react-icons/fa";
+import { Link } from "react-router-dom";
+import { FaEnvelope, FaLock, FaUserShield, FaEye, FaEyeSlash, FaArrowLeft } from "react-icons/fa";
 import Dashboard from "./Dashbord";
 import { loginAdmin } from "../../lib/api";
+import logoSolar from "../../assets/logoSolar.png";
 import "../../index.css";
 
 type AdminUser = { id?: string; name: string; email: string; role?: string };
 
 export default function AdminPage() {
   const [signInData, setSignInData] = useState({ email: "", password: "" });
+  const [showPassword, setShowPassword] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(() => !!localStorage.getItem("adminToken"));
   const [user, setUser] = useState<AdminUser | null>(() => {
     const stored = localStorage.getItem("adminUser");
@@ -29,7 +32,7 @@ export default function AdminPage() {
     setErrorMessage(null);
 
     if (!signInData.email.trim() || !signInData.password.trim()) {
-      setErrorMessage("Veuillez saisir votre email et votre mot de passe.");
+      setErrorMessage("Please enter your email and password.");
       return;
     }
 
@@ -39,7 +42,7 @@ export default function AdminPage() {
       persistSession(token, authUser);
       setSignInData({ email: "", password: "" });
     } catch (err: any) {
-      setErrorMessage(err.message || "Erreur de connexion");
+      setErrorMessage(err.message || "Login failed. Please check your credentials.");
     } finally {
       setIsLoading(false);
     }
@@ -66,15 +69,29 @@ export default function AdminPage() {
   // SIGN IN ONLY FORM
   return (
     <div style={styles.authContainer}>
+      {/* TOP BAR / BACK TO SITE */}
+      <div style={styles.topBar}>
+        <Link to="/" style={styles.backButton}>
+          <FaArrowLeft style={{ fontSize: "14px" }} />
+          <span>Back to Site</span>
+        </Link>
+      </div>
+
       <div style={styles.authCard}>
         {/* HEADER ICON & TITLE */}
         <div style={styles.cardHeader}>
-          <div style={styles.iconCircle}>
-            <FaUserShield style={{ fontSize: "28px", color: "#ff6e00" }} />
+          <div style={styles.logoBadgeContainer}>
+            <img src={logoSolar} alt="Advanced Solar" style={styles.logoImage} />
           </div>
-          <h2 style={styles.formTitle}>Admin Portal</h2>
+
+          <div style={styles.badgeRow}>
+            <FaUserShield style={{ color: "#ff6e00", fontSize: "16px" }} />
+            <span style={styles.badgeText}>Admin Portal</span>
+          </div>
+
+          <h2 style={styles.formTitle}>Welcome Back</h2>
           <p style={styles.formSubtitle}>
-            Connectez-vous à votre espace de gestion
+            Sign in to access your management dashboard
           </p>
         </div>
 
@@ -88,12 +105,12 @@ export default function AdminPage() {
         {/* SIGN IN FORM */}
         <form onSubmit={handleSignIn} style={styles.form}>
           <div style={styles.inputGroup}>
-            <label style={styles.label}>Adresse Email</label>
+            <label style={styles.label}>Email Address</label>
             <div style={styles.inputWrapper}>
               <FaEnvelope style={styles.icon} />
               <input
                 type="email"
-                placeholder="wa.bjaoui@gmail.com"
+                placeholder="admin@example.com"
                 value={signInData.email}
                 onChange={(e) => setSignInData({ ...signInData, email: e.target.value })}
                 style={styles.input}
@@ -103,27 +120,35 @@ export default function AdminPage() {
           </div>
 
           <div style={styles.inputGroup}>
-            <label style={styles.label}>Mot de passe</label>
+            <label style={styles.label}>Password</label>
             <div style={styles.inputWrapper}>
               <FaLock style={styles.icon} />
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 placeholder="••••••••••••"
                 value={signInData.password}
                 onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
                 style={styles.input}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={styles.togglePasswordBtn}
+                title={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <FaEyeSlash /> : <FaEye />}
+              </button>
             </div>
           </div>
 
           <button type="submit" style={styles.submitBtn} disabled={isLoading}>
-            {isLoading ? "Connexion en cours..." : "Se connecter"}
+            {isLoading ? "Signing in..." : "Sign In"}
           </button>
         </form>
 
         <div style={styles.cardFooter}>
           <span style={styles.secureText}>
-            🔒 Accès réservé et sécurisé aux administrateurs
+            🔒 Secure access for administrators only
           </span>
         </div>
       </div>
@@ -136,47 +161,90 @@ const styles: { [key: string]: React.CSSProperties } = {
     width: "100%",
     minHeight: "100vh",
     display: "flex",
+    flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    background: "linear-gradient(135deg, #0f172a 0%, #1e3c72 50%, #2a5298 100%)",
+    background: "linear-gradient(135deg, #0b1120 0%, #172554 50%, #1e3a8a 100%)",
     padding: "clamp(16px, 4vw, 40px)",
     boxSizing: "border-box",
+    position: "relative",
+  },
+
+  topBar: {
+    position: "absolute",
+    top: "24px",
+    left: "24px",
+    zIndex: 10,
+  },
+
+  backButton: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "10px 18px",
+    background: "rgba(255, 255, 255, 0.1)",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
+    color: "#ffffff",
+    borderRadius: "12px",
+    textDecoration: "none",
+    fontSize: "14px",
+    fontWeight: 600,
+    border: "1px solid rgba(255, 255, 255, 0.15)",
+    transition: "all 0.2s ease",
   },
 
   authCard: {
     width: "100%",
-    maxWidth: "480px",
+    maxWidth: "460px",
     background: "#ffffff",
     borderRadius: "24px",
-    boxShadow: "0 25px 70px rgba(0, 0, 0, 0.35)",
+    boxShadow: "0 30px 80px rgba(0, 0, 0, 0.4)",
     overflow: "hidden",
     boxSizing: "border-box",
-    border: "1.5px solid rgba(255, 255, 255, 0.2)",
+    border: "1px solid rgba(255, 255, 255, 0.3)",
   },
 
   cardHeader: {
-    padding: "36px 32px 16px",
+    padding: "36px 32px 14px",
     textAlign: "center",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
   },
 
-  iconCircle: {
-    width: "64px",
-    height: "64px",
-    borderRadius: "18px",
-    background: "rgba(255, 110, 0, 0.1)",
-    border: "1.5px solid rgba(255, 110, 0, 0.2)",
-    display: "flex",
+  logoBadgeContainer: {
+    marginBottom: "14px",
+  },
+
+  logoImage: {
+    height: "44px",
+    width: "auto",
+    objectFit: "contain",
+  },
+
+  badgeRow: {
+    display: "inline-flex",
     alignItems: "center",
-    justifyContent: "center",
-    marginBottom: "16px",
+    gap: "6px",
+    padding: "4px 12px",
+    background: "rgba(255, 110, 0, 0.08)",
+    border: "1px solid rgba(255, 110, 0, 0.2)",
+    borderRadius: "20px",
+    marginBottom: "12px",
+  },
+
+  badgeText: {
+    fontSize: "12px",
+    fontWeight: 700,
+    color: "#ff6e00",
+    letterSpacing: "0.5px",
+    textTransform: "uppercase",
   },
 
   formTitle: {
     fontSize: "clamp(24px, 4vw, 28px)",
-    fontWeight: 900,
+    fontWeight: 800,
     color: "#0f172a",
     margin: 0,
     letterSpacing: "-0.5px",
@@ -203,7 +271,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: "16px 32px 32px",
     display: "flex",
     flexDirection: "column",
-    gap: "20px",
+    gap: "18px",
     boxSizing: "border-box",
   },
 
@@ -224,14 +292,14 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: "center",
     border: "1.5px solid #cbd5e1",
     borderRadius: "12px",
-    padding: "12px 16px",
+    padding: "11px 14px",
     transition: "all 0.2s ease",
     background: "#f8fafc",
   },
 
   icon: {
     color: "#ff6e00",
-    marginRight: "12px",
+    marginRight: "10px",
     fontSize: "16px",
     flexShrink: 0,
   },
@@ -246,9 +314,21 @@ const styles: { [key: string]: React.CSSProperties } = {
     width: "100%",
   },
 
+  togglePasswordBtn: {
+    background: "none",
+    border: "none",
+    color: "#94a3b8",
+    cursor: "pointer",
+    fontSize: "16px",
+    display: "flex",
+    alignItems: "center",
+    padding: "4px",
+    transition: "color 0.2s ease",
+  },
+
   submitBtn: {
     padding: "14px",
-    background: "linear-gradient(135deg, #ff6e00 0%, #ff8533 100%)",
+    background: "linear-gradient(135deg, #ff6e00 0%, #ea580c 100%)",
     color: "#ffffff",
     border: "none",
     borderRadius: "12px",

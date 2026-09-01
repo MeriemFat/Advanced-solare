@@ -5,18 +5,20 @@ const Navbar: React.FC = () => {
   return (
     <nav style={styles.nav} className="responsive-nav">
       <div style={styles.logoContainer}>
-        <img
-          src={logoSolar}
-          alt="Advanced Solar Solutions"
-          style={styles.logo}
-          className="responsive-logo"
-        />
+        <a href="/">
+          <img
+            src={logoSolar}
+            alt="Advanced Solar Solutions"
+            style={styles.logo}
+            className="responsive-logo"
+          />
+        </a>
       </div>
       <div style={styles.links} className="responsive-links">
-        <a href="#home" style={styles.link} className="responsive-link">
+        <a href="/#home" style={styles.link} className="responsive-link">
          <h3> Home</h3>
         </a>
-        <a href="#services" style={styles.link} className="responsive-link">
+        <a href="/#services" style={styles.link} className="responsive-link">
           <h3>Services</h3>
         </a>
 <a
@@ -28,7 +30,7 @@ const Navbar: React.FC = () => {
 >
   <h3>Portal</h3>
 </a>
-        <a href="#contact" style={styles.contactButton} className="responsive-contact-button">
+        <a href="/#contact" style={styles.contactButton} className="responsive-contact-button">
           <h3>Contact</h3>
         </a>
       </div>
