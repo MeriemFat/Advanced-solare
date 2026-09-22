@@ -2,6 +2,7 @@ import { Router } from "express";
 import { protect, requireRole } from "../middleware/auth.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import {
+  getMentionableUsers,
   getSubadmins,
   createSubadmin,
   updateSubadmin,
@@ -9,6 +10,9 @@ import {
 } from "../controllers/userController.js";
 
 const router = Router();
+
+// Mentionable users list accessible to all authenticated users (admin, subadmin)
+router.get("/mentionable", protect, asyncHandler(getMentionableUsers));
 
 // Only Super Admin can access sub-admin management
 router.use(protect, requireRole("admin"));

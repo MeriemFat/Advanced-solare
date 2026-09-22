@@ -10,9 +10,14 @@ type AuthResponse = {
 export type Contractor = {
   _id: string;
   nom: string;
+  projectCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
-export type ContractorInput = Omit<Contractor, "_id">;
+export type ContractorInput = {
+  nom: string;
+};
 
 export type ProjectFile = {
   _id: string;
@@ -63,22 +68,76 @@ export type ProjectLink = {
 export type Project = {
   _id: string;
   name: string;
-  description: string;
+  description?: string;
   status: string;
   date: string;
   contractor: Contractor | null;
+  priority?: string;
+  projectType?: string[] | string;
+  idReview?: string;
+  updates?: string;
+  pmName?: string;
+  pmEmails?: string;
+  peerReview?: string;
+  drafterName?: string;
+  drafterEmails?: string;
+  submittedDate?: string;
+  rfiStatus?: string;
+  pmStatus?: string;
+  draftingStatus?: string;
+  qaAndDeliveryStatus?: string;
+  projectSs?: string;
+  seTime?: string;
+  structEngi?: string;
   files?: ProjectFile[];
   images?: ProjectImage[];
   comments?: ProjectComment[];
   links?: ProjectLink[];
+  serviceType?: string;
+  statusUpdatedAt?: string;
+  statusHistory?: Array<{ status: string; changedAt: string; changedBy: string }>;
+  customFields?: Record<string, any>;
+  isInvoiced?: boolean;
+  invoiceStatus?: "Not Invoiced" | "Invoiced" | "Paid" | "Pending" | string;
+  invoiceNumber?: string;
+  invoiceDate?: string;
+  invoiceAmount?: number;
+  invoiceNotes?: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type ProjectInput = {
   name: string;
-  description: string;
+  description?: string;
   status: string;
   date: string;
   contractor: string; // contractor id, or "" for none
+  priority?: string;
+  projectType?: string[] | string;
+  idReview?: string;
+  updates?: string;
+  pmName?: string;
+  pmEmails?: string;
+  peerReview?: string;
+  drafterName?: string;
+  drafterEmails?: string;
+  submittedDate?: string;
+  rfiStatus?: string;
+  pmStatus?: string;
+  draftingStatus?: string;
+  qaAndDeliveryStatus?: string;
+  projectSs?: string;
+  seTime?: string;
+  structEngi?: string;
+  serviceType?: string;
+  customFields?: Record<string, any>;
+  isInvoiced?: boolean;
+  invoiceStatus?: string;
+  invoiceNumber?: string;
+  invoiceDate?: string;
+  invoiceAmount?: number;
+  invoiceNotes?: string;
 };
 
 async function request<T>(
@@ -129,8 +188,22 @@ export function createProject(data: ProjectInput) {
   return request<Project>("/projects", { method: "POST", body: data, auth: true });
 }
 
-export function updateProject(id: string, data: ProjectInput) {
+export function updateProject(id: string, data: Partial<ProjectInput>) {
   return request<Project>(`/projects/${id}`, { method: "PUT", body: data, auth: true });
+}
+
+export function updateProjectInvoice(
+  id: string,
+  data: {
+    isInvoiced?: boolean;
+    invoiceStatus?: string;
+    invoiceNumber?: string;
+    invoiceDate?: string;
+    invoiceAmount?: number;
+    invoiceNotes?: string;
+  }
+) {
+  return request<Project>(`/projects/${id}/invoice`, { method: "PATCH", body: data, auth: true });
 }
 
 export function deleteProject(id: string) {
@@ -222,6 +295,17 @@ export function addProjectComment(
   );
 }
 
+export function updateProjectComment(
+  projectId: string,
+  commentId: string,
+  data: { text: string }
+) {
+  return request<{ message: string; comment: ProjectComment; project: Project }>(
+    `/projects/${projectId}/comments/${commentId}`,
+    { method: "PUT", body: data, auth: true }
+  );
+}
+
 export function deleteProjectComment(projectId: string, commentId: string) {
   return request<{ message: string; project: Project }>(
     `/projects/${projectId}/comments/${commentId}`,
@@ -237,6 +321,18 @@ export function addCommentReply(
   return request<{ message: string; reply: CommentReply; comment: ProjectComment; project: Project }>(
     `/projects/${projectId}/comments/${commentId}/replies`,
     { method: "POST", body: data, auth: true }
+  );
+}
+
+export function updateCommentReply(
+  projectId: string,
+  commentId: string,
+  replyId: string,
+  data: { text: string }
+) {
+  return request<{ message: string; reply: CommentReply; comment: ProjectComment; project: Project }>(
+    `/projects/${projectId}/comments/${commentId}/replies/${replyId}`,
+    { method: "PUT", body: data, auth: true }
   );
 }
 
@@ -375,6 +471,10 @@ export function deleteContractor(id: string) {
   return request<{ message: string }>(`/contractors/${id}`, { method: "DELETE", auth: true });
 }
 
+export function getContractorProjects(id: string) {
+  return request<Project[]>(`/contractors/${id}/projects`, { auth: true });
+}
+
 // Subadmins Management
 export type SubadminUser = {
   _id: string;
@@ -389,6 +489,10 @@ export type SubadminInput = {
   email: string;
   password: string;
 };
+
+export function getMentionableUsers() {
+  return request<SubadminUser[]>("/users/mentionable", { auth: true });
+}
 
 export function getSubadmins() {
   return request<SubadminUser[]>("/users/subadmins", { auth: true });
@@ -419,4 +523,206 @@ export function deleteSubadmin(id: string) {
     auth: true,
   });
 }
+
+export interface WorkflowStatus {
+  _id: string;
+  name: string;
+  key: string;
+  serviceType: string;
+  color: string;
+  badgeColor?: string;
+  lightBg: string;
+  borderColor: string;
+  headerBg?: string;
+  icon: string;
+  emptyText: string;
+  yellowThresholdHours: number;
+  redThresholdHours: number;
+  order: number;
+  isActive: boolean;
+}
+
+export function getWorkflowStatuses(serviceType = "Plan Set Design") {
+  return request<WorkflowStatus[]>(`/workflow-statuses?serviceType=${encodeURIComponent(serviceType)}`, {
+    auth: true,
+  });
+}
+
+export function createWorkflowStatus(data: Partial<WorkflowStatus>) {
+  return request<WorkflowStatus>("/workflow-statuses", {
+    method: "POST",
+    body: data,
+    auth: true,
+  });
+}
+
+export function updateWorkflowStatus(id: string, data: Partial<WorkflowStatus>) {
+  return request<WorkflowStatus>(`/workflow-statuses/${id}`, {
+    method: "PUT",
+    body: data,
+    auth: true,
+  });
+}
+
+export function deleteWorkflowStatus(id: string) {
+  return request<{ message: string }>(`/workflow-statuses/${id}`, {
+    method: "DELETE",
+    auth: true,
+  });
+}
+
+export function reorderWorkflowStatuses(statusIds: string[]) {
+  return request<{ message: string }>("/workflow-statuses/reorder", {
+    method: "POST",
+    body: { statusIds },
+    auth: true,
+  });
+}
+
+export interface FieldLabelItem {
+  _id: string;
+  key: string;
+  defaultLabel: string;
+  customLabel?: string;
+  category: string;
+  description?: string;
+}
+
+export interface FieldLabelsResponse {
+  items: FieldLabelItem[];
+  dictionary: Record<string, string>;
+}
+
+export function getFieldLabels() {
+  return request<FieldLabelsResponse>("/field-labels", { auth: true });
+}
+
+export function updateFieldLabels(updates: Record<string, string>) {
+  return request<FieldLabelsResponse>("/field-labels", {
+    method: "PUT",
+    body: { updates },
+    auth: true,
+  });
+}
+
+export function resetFieldLabels() {
+  return request<FieldLabelsResponse>("/field-labels/reset", {
+    method: "POST",
+    auth: true,
+  });
+}
+
+export type NotificationType =
+  | "create"
+  | "update"
+  | "delete"
+  | "info"
+  | "warning"
+  | "alert"
+  | "mention";
+
+export interface AppNotification {
+  id: string;
+  _id?: string;
+  title: string;
+  message: string;
+  type: NotificationType;
+  projectId?: string | null;
+  projectName?: string;
+  author?: {
+    id?: string | null;
+    name?: string;
+    email?: string;
+    role?: string;
+  };
+  isRead?: boolean;
+  metadata?: any;
+  createdAt: string;
+}
+
+export interface NotificationsResponse {
+  notifications: AppNotification[];
+  unreadCount: number;
+}
+
+export function getNotifications() {
+  return request<NotificationsResponse>("/notifications", { auth: true });
+}
+
+export function markNotificationAsRead(id: string) {
+  return request<AppNotification>(`/notifications/${id}/read`, {
+    method: "PUT",
+    auth: true,
+  });
+}
+
+export function markAllNotificationsAsRead() {
+  return request<{ message: string }>("/notifications/read-all", {
+    method: "PUT",
+    auth: true,
+  });
+}
+
+export function deleteNotification(id: string) {
+  return request<{ message: string }>(`/notifications/${id}`, {
+    method: "DELETE",
+    auth: true,
+  });
+}
+
+export function checkDeadlinesManual() {
+  return request<{ success: boolean; alertCount: number; scannedCount: number }>("/notifications/check-deadlines", {
+    method: "POST",
+    auth: true,
+  });
+}
+
+export function getNotificationStreamUrl() {
+  const token = localStorage.getItem("adminToken") || "";
+  return `${API_URL}/notifications/stream?token=${encodeURIComponent(token)}`;
+}
+
+export type CustomVariableType = "string" | "number" | "date";
+
+export interface CustomVariable {
+  _id: string;
+  name: string;
+  key: string;
+  type: CustomVariableType;
+  defaultValue?: any;
+  order?: number;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export function getCustomVariables() {
+  return request<CustomVariable[]>("/custom-variables", { auth: true });
+}
+
+export function createCustomVariable(data: { name: string; type: CustomVariableType }) {
+  return request<CustomVariable>("/custom-variables", {
+    method: "POST",
+    body: data,
+    auth: true,
+  });
+}
+
+export function deleteCustomVariable(id: string) {
+  return request<{ message: string; id: string }>(`/custom-variables/${id}`, {
+    method: "DELETE",
+    auth: true,
+  });
+}
+
+export function updateCustomVariable(id: string, data: { name: string; type?: CustomVariableType }) {
+  return request<CustomVariable>(`/custom-variables/${id}`, {
+    method: "PUT",
+    body: data,
+    auth: true,
+  });
+}
+
+
+
 

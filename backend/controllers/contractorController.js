@@ -35,3 +35,8 @@ export async function deleteContractor(req, res) {
   }
   res.json({ message: "Contracteur supprimé" });
 }
+
+export async function getContractorProjects(req, res) {
+  const projects = await contractorService.getContractorProjects(req.params.id);
+  res.json(projects);
+}

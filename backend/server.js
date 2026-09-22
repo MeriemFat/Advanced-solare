@@ -17,7 +17,13 @@ import authRoutes from "./routes/authRoutes.js";
 import projectRoutes from "./routes/projectRoutes.js";
 import contractorRoutes from "./routes/contractorRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
+import workflowStatusRoutes from "./routes/workflowStatusRoutes.js";
+import fieldLabelRoutes from "./routes/fieldLabelRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
+import customVariableRoutes from "./routes/customVariableRoutes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
+import { startDeadlineWatcher } from "./services/deadlineWatcherService.js";
+import { ensureProjectProcessingFirst } from "./controllers/workflowStatusController.js";
 
 const app = express();
 
@@ -29,11 +35,18 @@ app.use(morgan("dev"));
 // Serve static uploads
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-app.get("/api/health", (req, res) => res.json({ status: "ok" }));
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
 app.use("/api/auth", authRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/contractors", contractorRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/workflow-statuses", workflowStatusRoutes);
+app.use("/api/field-labels", fieldLabelRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/custom-variables", customVariableRoutes);
 
 // Serve static frontend in production or if dist exists
 const distPath = path.join(__dirname, "../dist");
@@ -52,6 +65,7 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 
 import User from "./models/User.js";
+import CustomVariable from "./models/CustomVariable.js";
 
 async function ensureSuperAdmin() {
   try {
@@ -71,9 +85,30 @@ async function ensureSuperAdmin() {
   }
 }
 
+async function ensureDefaultCustomVariables() {
+  try {
+    const totalCount = await CustomVariable.countDocuments();
+    if (totalCount === 0) {
+      await CustomVariable.create({
+        name: "Adresse",
+        key: "adresse",
+        type: "string",
+        order: 0,
+        createdBy: "System",
+      });
+      console.log("📍 Variable 'Adresse' initialisée avec succès");
+    }
+  } catch (err) {
+    console.error("Custom variable check error:", err.message);
+  }
+}
+
 connectDB()
   .then(async () => {
     await ensureSuperAdmin();
+    await ensureDefaultCustomVariables();
+    await ensureProjectProcessingFirst();
+    startDeadlineWatcher(15);
     app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
   })
   .catch((err) => {

@@ -18,8 +18,10 @@ import {
   deleteProjectImage,
   downloadProjectImage,
   addProjectComment,
+  updateProjectComment,
   deleteProjectComment,
   addCommentReply,
+  updateCommentReply,
   deleteCommentReply,
   addProjectLink,
   deleteProjectLink,
@@ -27,6 +29,7 @@ import {
   exportAllUploadedFilesZip,
   exportProjectsCSV,
   exportProjectsPDF,
+  updateProjectInvoice,
 } from "../controllers/projectController.js";
 
 const router = Router();
@@ -43,6 +46,7 @@ router.get("/", asyncHandler(getProjects));
 router.get("/:id", asyncHandler(getProject));
 router.post("/", asyncHandler(createProject));
 router.put("/:id", asyncHandler(updateProject));
+router.patch("/:id/invoice", asyncHandler(updateProjectInvoice));
 router.delete("/:id", asyncHandler(deleteProject));
 
 // Single Project ZIP Export
@@ -68,8 +72,10 @@ router.get("/:id/images/:imageId/download", asyncHandler(downloadProjectImage));
 
 // Project Comments & Replies
 router.post("/:id/comments", asyncHandler(addProjectComment));
+router.put("/:id/comments/:commentId", asyncHandler(updateProjectComment));
 router.delete("/:id/comments/:commentId", asyncHandler(deleteProjectComment));
 router.post("/:id/comments/:commentId/replies", asyncHandler(addCommentReply));
+router.put("/:id/comments/:commentId/replies/:replyId", asyncHandler(updateCommentReply));
 router.delete("/:id/comments/:commentId/replies/:replyId", asyncHandler(deleteCommentReply));
 
 // Project Links

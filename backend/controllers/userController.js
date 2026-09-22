@@ -1,5 +1,14 @@
 import User from "../models/User.js";
 
+// List all users eligible for @mentions in comments
+export async function getMentionableUsers(req, res) {
+  const users = await User.find({})
+    .select("_id name email role")
+    .sort({ name: 1 })
+    .lean();
+  res.json(users);
+}
+
 // List all sub-admins and admins
 export async function getSubadmins(req, res) {
   const users = await User.find({ role: { $in: ["admin", "subadmin"] } })
