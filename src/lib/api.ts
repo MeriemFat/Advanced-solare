@@ -2,9 +2,32 @@ const API_URL =
   import.meta.env.VITE_API_URL ||
   (import.meta.env.DEV ? "http://localhost:5000/api" : "/api");
 
+export type UserPermissions = {
+  canViewProjects: boolean;
+  canViewContractors: boolean;
+  canViewInvoices: boolean;
+  canViewInterconnection: boolean;
+  projectAccess: "all" | "assigned";
+  canCreateProjects: boolean;
+  canEditProjects: boolean;
+  canDeleteProjects: boolean;
+  canExportProjects: boolean;
+  canManageContractors: boolean;
+  canEditInvoices: boolean;
+  canEditInterconnection: boolean;
+};
+
+export type AuthUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  permissions?: UserPermissions;
+};
+
 type AuthResponse = {
   token: string;
-  user: { id: string; name: string; email: string; role: string };
+  user: AuthUser;
 };
 
 export type Contractor = {
@@ -103,6 +126,15 @@ export type Project = {
   invoiceDate?: string;
   invoiceAmount?: number;
   invoiceNotes?: string;
+  isInterconnectionSubmitted?: boolean;
+  interconnectionStatus?: "Not Started" | "Documents Gathering" | "Submitted" | "Under Review" | "Approved" | "PTO Granted" | "Action Required" | string;
+  utilityProvider?: string;
+  interconnectionAppNumber?: string;
+  interconnectionSubmissionDate?: string;
+  interconnectionApprovalDate?: string;
+  interconnectionPtoStatus?: "Pending" | "Granted" | "Not Applicable" | "Expired" | string;
+  interconnectionFee?: number;
+  interconnectionNotes?: string;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -138,6 +170,15 @@ export type ProjectInput = {
   invoiceDate?: string;
   invoiceAmount?: number;
   invoiceNotes?: string;
+  isInterconnectionSubmitted?: boolean;
+  interconnectionStatus?: string;
+  utilityProvider?: string;
+  interconnectionAppNumber?: string;
+  interconnectionSubmissionDate?: string;
+  interconnectionApprovalDate?: string;
+  interconnectionPtoStatus?: string;
+  interconnectionFee?: number;
+  interconnectionNotes?: string;
 };
 
 async function request<T>(
@@ -204,6 +245,25 @@ export function updateProjectInvoice(
   }
 ) {
   return request<Project>(`/projects/${id}/invoice`, { method: "PATCH", body: data, auth: true });
+}
+
+export function updateProjectInterconnection(
+  id: string,
+  data: {
+    isInterconnectionSubmitted?: boolean;
+    interconnectionStatus?: string;
+    utilityProvider?: string;
+    interconnectionAppNumber?: string;
+    interconnectionSubmissionDate?: string;
+    interconnectionApprovalDate?: string;
+    interconnectionPtoStatus?: string;
+    interconnectionFee?: number;
+    interconnectionNotes?: string;
+    isInvoiced?: boolean;
+    invoiceStatus?: string;
+  }
+) {
+  return request<Project>(`/projects/${id}/interconnection`, { method: "PATCH", body: data, auth: true });
 }
 
 export function deleteProject(id: string) {
@@ -481,6 +541,7 @@ export type SubadminUser = {
   name: string;
   email: string;
   role: "admin" | "subadmin" | "client";
+  permissions?: UserPermissions;
   createdAt?: string;
 };
 
@@ -488,7 +549,13 @@ export type SubadminInput = {
   name: string;
   email: string;
   password: string;
+  role?: "admin" | "subadmin";
+  permissions?: Partial<UserPermissions>;
 };
+
+export function getMe() {
+  return request<AuthUser>("/auth/me", { auth: true });
+}
 
 export function getMentionableUsers() {
   return request<SubadminUser[]>("/users/mentionable", { auth: true });
@@ -508,7 +575,13 @@ export function createSubadmin(data: SubadminInput) {
 
 export function updateSubadmin(
   id: string,
-  data: { name?: string; email?: string; password?: string; role?: string }
+  data: {
+    name?: string;
+    email?: string;
+    password?: string;
+    role?: string;
+    permissions?: Partial<UserPermissions>;
+  }
 ) {
   return request<{ message: string; user: SubadminUser }>(`/users/subadmins/${id}`, {
     method: "PUT",

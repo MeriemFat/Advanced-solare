@@ -38,7 +38,7 @@ export default function HomeClient() {
               <div style={styles.heroButtons} className="responsive-hero-buttons">
                 <a href="#contact" style={styles.primaryButton} className="responsive-primary-button">Get a Quote</a>
                 <a href="#services" style={styles.secondaryButton} className="responsive-secondary-button">Our Services</a>
-                <a href="/admin" style={{ display: "none" }}>Admin</a>
+                <a href="/dashbord" style={{ display: "none" }}>Dashboard</a>
               </div>
             </div>
             <div style={styles.videoCard}>

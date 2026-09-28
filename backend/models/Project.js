@@ -128,6 +128,15 @@ const projectSchema = new mongoose.Schema(
     invoiceDate: { type: String, default: "" },
     invoiceAmount: { type: Number, default: 0 },
     invoiceNotes: { type: String, default: "" },
+    isInterconnectionSubmitted: { type: Boolean, default: false },
+    interconnectionStatus: { type: String, default: "Not Started" },
+    utilityProvider: { type: String, default: "" },
+    interconnectionAppNumber: { type: String, default: "" },
+    interconnectionSubmissionDate: { type: String, default: "" },
+    interconnectionApprovalDate: { type: String, default: "" },
+    interconnectionPtoStatus: { type: String, default: "Pending" },
+    interconnectionFee: { type: Number, default: 0 },
+    interconnectionNotes: { type: String, default: "" },
   },
   { timestamps: true }
 );

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import HomeClient from "./components/Clientpage/HomeClient";
@@ -19,12 +19,26 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<ClientLayout />} />
-        <Route path="/admin" element={<AdminPage />} />
-        <Route path="/Admin" element={<AdminPage />} />
-        <Route path="/admine" element={<AdminPage />} />
-        <Route path="/Admine" element={<AdminPage />} />
-        <Route path="/admin/*" element={<AdminPage />} />
-        <Route path="/Admin/*" element={<AdminPage />} />
+
+        {/* Dashboard Routes */}
+        <Route path="/dashbord" element={<AdminPage />} />
+        <Route path="/Dashbord" element={<AdminPage />} />
+        <Route path="/dashbord/*" element={<AdminPage />} />
+        <Route path="/Dashbord/*" element={<AdminPage />} />
+
+        {/* Dashboard alternative spelling */}
+        <Route path="/dashboard" element={<AdminPage />} />
+        <Route path="/Dashboard" element={<AdminPage />} />
+        <Route path="/dashboard/*" element={<AdminPage />} />
+        <Route path="/Dashboard/*" element={<AdminPage />} />
+
+        {/* Redirect /admin to /dashbord */}
+        <Route path="/admin" element={<Navigate to="/dashbord" replace />} />
+        <Route path="/Admin" element={<Navigate to="/dashbord" replace />} />
+        <Route path="/admine" element={<Navigate to="/dashbord" replace />} />
+        <Route path="/Admine" element={<Navigate to="/dashbord" replace />} />
+        <Route path="/admin/*" element={<Navigate to="/dashbord" replace />} />
+        <Route path="/Admin/*" element={<Navigate to="/dashbord" replace />} />
       </Routes>
     </BrowserRouter>
   );

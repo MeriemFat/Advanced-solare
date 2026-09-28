@@ -46,6 +46,27 @@ export async function getProjects(req, res) {
   if (req.query.serviceType) {
     filter.serviceType = req.query.serviceType;
   }
+
+  // Filter projects by subadmin permissions
+  if (req.user && req.user.role === "subadmin") {
+    const userDoc = await User.findById(req.user.id).select("permissions name email");
+    if (userDoc?.permissions) {
+      if (userDoc.permissions.canViewProjects === false) {
+        return res.json([]);
+      }
+      if (userDoc.permissions.projectAccess === "assigned") {
+        const uEmail = (userDoc.email || "").trim().toLowerCase();
+        const uName = (userDoc.name || "").trim();
+        filter.$or = [
+          { pmEmails: { $regex: new RegExp(uEmail, "i") } },
+          { pmName: { $regex: new RegExp(`^${uName}$`, "i") } },
+          { drafterEmails: { $regex: new RegExp(uEmail, "i") } },
+          { drafterName: { $regex: new RegExp(`^${uName}$`, "i") } },
+        ];
+      }
+    }
+  }
+
   const projects = await Project.find(filter)
     .sort({ createdAt: -1 })
     .populate("contractor", CONTRACTOR_FIELDS);
@@ -93,6 +114,13 @@ export async function createProject(req, res) {
 
   if (!name || !name.trim()) {
     return res.status(400).json({ message: "Project name is required." });
+  }
+
+  if (req.user && req.user.role === "subadmin") {
+    const userDoc = await User.findById(req.user.id).select("permissions");
+    if (userDoc?.permissions && userDoc.permissions.canCreateProjects === false) {
+      return res.status(403).json({ message: "Vous n'avez pas l'autorisation de créer des projets" });
+    }
   }
 
   // Check if project with the same name already exists (case-insensitive)
@@ -183,6 +211,40 @@ export async function createProject(req, res) {
 }
 
 export async function updateProject(req, res) {
+  if (req.user && req.user.role === "subadmin") {
+    const userDoc = await User.findById(req.user.id).select("permissions");
+    if (userDoc?.permissions) {
+      if (userDoc.permissions.canEditProjects === false) {
+        return res.status(403).json({ message: "Vous n'avez pas l'autorisation de modifier des projets" });
+      }
+      if (
+        userDoc.permissions.canEditInvoices === false &&
+        (req.body.isInvoiced !== undefined ||
+          req.body.invoiceStatus !== undefined ||
+          req.body.invoiceNumber !== undefined ||
+          req.body.invoiceAmount !== undefined ||
+          req.body.invoiceDate !== undefined ||
+          req.body.invoiceNotes !== undefined)
+      ) {
+        return res.status(403).json({ message: "Vous n'avez pas l'autorisation de modifier les factures" });
+      }
+      if (
+        userDoc.permissions.canEditInterconnection === false &&
+        (req.body.isInterconnectionSubmitted !== undefined ||
+          req.body.interconnectionStatus !== undefined ||
+          req.body.utilityProvider !== undefined ||
+          req.body.interconnectionAppNumber !== undefined ||
+          req.body.interconnectionSubmissionDate !== undefined ||
+          req.body.interconnectionApprovalDate !== undefined ||
+          req.body.interconnectionPtoStatus !== undefined ||
+          req.body.interconnectionFee !== undefined ||
+          req.body.interconnectionNotes !== undefined)
+      ) {
+        return res.status(403).json({ message: "Vous n'avez pas l'autorisation de modifier les interconnexions" });
+      }
+    }
+  }
+
   const existing = await Project.findById(req.params.id);
   if (!existing) {
     return res.status(404).json({ message: "Projet introuvable" });
@@ -283,6 +345,16 @@ export async function updateProject(req, res) {
   if (req.body.invoiceAmount !== undefined) updateData.invoiceAmount = Number(req.body.invoiceAmount) || 0;
   if (req.body.invoiceNotes !== undefined) updateData.invoiceNotes = req.body.invoiceNotes;
 
+  if (req.body.isInterconnectionSubmitted !== undefined) updateData.isInterconnectionSubmitted = Boolean(req.body.isInterconnectionSubmitted);
+  if (req.body.interconnectionStatus !== undefined) updateData.interconnectionStatus = req.body.interconnectionStatus;
+  if (req.body.utilityProvider !== undefined) updateData.utilityProvider = String(req.body.utilityProvider).trim();
+  if (req.body.interconnectionAppNumber !== undefined) updateData.interconnectionAppNumber = String(req.body.interconnectionAppNumber).trim();
+  if (req.body.interconnectionSubmissionDate !== undefined) updateData.interconnectionSubmissionDate = req.body.interconnectionSubmissionDate;
+  if (req.body.interconnectionApprovalDate !== undefined) updateData.interconnectionApprovalDate = req.body.interconnectionApprovalDate;
+  if (req.body.interconnectionPtoStatus !== undefined) updateData.interconnectionPtoStatus = req.body.interconnectionPtoStatus;
+  if (req.body.interconnectionFee !== undefined) updateData.interconnectionFee = Number(req.body.interconnectionFee) || 0;
+  if (req.body.interconnectionNotes !== undefined) updateData.interconnectionNotes = req.body.interconnectionNotes;
+
   if (status !== undefined && status !== existing.status) {
     const now = new Date();
     updateData.status = status;
@@ -335,6 +407,13 @@ export async function updateProject(req, res) {
 }
 
 export async function deleteProject(req, res) {
+  if (req.user && req.user.role === "subadmin") {
+    const userDoc = await User.findById(req.user.id).select("permissions");
+    if (userDoc?.permissions && userDoc.permissions.canDeleteProjects === false) {
+      return res.status(403).json({ message: "Vous n'avez pas l'autorisation de supprimer des projets" });
+    }
+  }
+
   const project = await Project.findByIdAndDelete(req.params.id);
   if (!project) {
     return res.status(404).json({ message: "Projet introuvable" });
@@ -1227,6 +1306,41 @@ export async function updateProjectInvoice(req, res) {
   if (invoiceDate !== undefined) project.invoiceDate = invoiceDate;
   if (invoiceAmount !== undefined) project.invoiceAmount = Number(invoiceAmount) || 0;
   if (invoiceNotes !== undefined) project.invoiceNotes = invoiceNotes;
+
+  await project.save();
+  await project.populate("contractor", CONTRACTOR_FIELDS);
+
+  res.json(project);
+}
+
+export async function updateProjectInterconnection(req, res) {
+  const {
+    isInterconnectionSubmitted,
+    interconnectionStatus,
+    utilityProvider,
+    interconnectionAppNumber,
+    interconnectionSubmissionDate,
+    interconnectionApprovalDate,
+    interconnectionPtoStatus,
+    interconnectionFee,
+    interconnectionNotes,
+  } = req.body;
+  const project = await Project.findById(req.params.id);
+  if (!project) {
+    return res.status(404).json({ message: "Project not found" });
+  }
+
+  if (isInterconnectionSubmitted !== undefined) project.isInterconnectionSubmitted = Boolean(isInterconnectionSubmitted);
+  if (interconnectionStatus !== undefined) project.interconnectionStatus = interconnectionStatus;
+  if (utilityProvider !== undefined) project.utilityProvider = String(utilityProvider).trim();
+  if (interconnectionAppNumber !== undefined) project.interconnectionAppNumber = String(interconnectionAppNumber).trim();
+  if (interconnectionSubmissionDate !== undefined) project.interconnectionSubmissionDate = interconnectionSubmissionDate;
+  if (interconnectionApprovalDate !== undefined) project.interconnectionApprovalDate = interconnectionApprovalDate;
+  if (interconnectionPtoStatus !== undefined) project.interconnectionPtoStatus = interconnectionPtoStatus;
+  if (interconnectionFee !== undefined) project.interconnectionFee = Number(interconnectionFee) || 0;
+  if (interconnectionNotes !== undefined) project.interconnectionNotes = interconnectionNotes;
+  if (req.body.isInvoiced !== undefined) project.isInvoiced = Boolean(req.body.isInvoiced);
+  if (req.body.invoiceStatus !== undefined) project.invoiceStatus = req.body.invoiceStatus;
 
   await project.save();
   await project.populate("contractor", CONTRACTOR_FIELDS);

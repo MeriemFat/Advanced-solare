@@ -2,24 +2,22 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { FaEnvelope, FaLock, FaUserShield, FaEye, FaEyeSlash, FaArrowLeft } from "react-icons/fa";
 import Dashboard from "./Dashbord";
-import { loginAdmin } from "../../lib/api";
+import { loginAdmin, type AuthUser } from "../../lib/api";
 import logoSolar from "../../assets/logoSolar.png";
 import "../../index.css";
-
-type AdminUser = { id?: string; name: string; email: string; role?: string };
 
 export default function AdminPage() {
   const [signInData, setSignInData] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(() => !!localStorage.getItem("adminToken"));
-  const [user, setUser] = useState<AdminUser | null>(() => {
+  const [user, setUser] = useState<AuthUser | null>(() => {
     const stored = localStorage.getItem("adminUser");
     return stored ? JSON.parse(stored) : null;
   });
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const persistSession = (token: string, authUser: AdminUser) => {
+  const persistSession = (token: string, authUser: AuthUser) => {
     localStorage.setItem("adminToken", token);
     localStorage.setItem("adminUser", JSON.stringify(authUser));
     setUser(authUser);

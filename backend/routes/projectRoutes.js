@@ -30,6 +30,7 @@ import {
   exportProjectsCSV,
   exportProjectsPDF,
   updateProjectInvoice,
+  updateProjectInterconnection,
 } from "../controllers/projectController.js";
 
 const router = Router();
@@ -47,6 +48,7 @@ router.get("/:id", asyncHandler(getProject));
 router.post("/", asyncHandler(createProject));
 router.put("/:id", asyncHandler(updateProject));
 router.patch("/:id/invoice", asyncHandler(updateProjectInvoice));
+router.patch("/:id/interconnection", asyncHandler(updateProjectInterconnection));
 router.delete("/:id", asyncHandler(deleteProject));
 
 // Single Project ZIP Export

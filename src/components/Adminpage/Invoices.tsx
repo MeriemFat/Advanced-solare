@@ -13,6 +13,8 @@ import {
   FaClock,
   FaBuilding,
   FaChartPie,
+  FaNetworkWired,
+  FaMapMarkerAlt,
 } from "react-icons/fa";
 import {
   getProjects,
@@ -24,9 +26,22 @@ import {
 
 interface InvoicesProps {
   onSelectProject?: (projectId: string) => void;
+  canEdit?: boolean;
 }
 
-export default function Invoices({ onSelectProject }: InvoicesProps) {
+const getProjectAddress = (p: Project): string => {
+  return (
+    p.customFields?.["adresse"] ||
+    p.customFields?.["Adresse"] ||
+    p.customFields?.["address"] ||
+    p.customFields?.["Address"] ||
+    (p as any).adresse ||
+    (p as any).address ||
+    ""
+  );
+};
+
+export default function Invoices({ onSelectProject, canEdit = true }: InvoicesProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -67,6 +82,10 @@ export default function Invoices({ onSelectProject }: InvoicesProps) {
 
   // Open Edit Invoice Modal
   const handleOpenEdit = (project: Project) => {
+    if (!canEdit) {
+      alert("Vous n'avez pas l'autorisation de modifier les factures.");
+      return;
+    }
     setEditingProject(project);
     setFormIsInvoiced(Boolean(project.isInvoiced));
     setFormInvoiceStatus(project.invoiceStatus || (project.isInvoiced ? "Invoiced" : "Not Invoiced"));
@@ -78,6 +97,10 @@ export default function Invoices({ onSelectProject }: InvoicesProps) {
 
   // Quick Status Change directly from the table
   const handleQuickStatusChange = async (project: Project, newStatus: string) => {
+    if (!canEdit) {
+      alert("Vous n'avez pas l'autorisation de modifier les factures.");
+      return;
+    }
     const isInvoiced = newStatus === "Invoiced" || newStatus === "Paid";
     const today = new Date().toISOString().slice(0, 10);
 
@@ -134,6 +157,7 @@ export default function Invoices({ onSelectProject }: InvoicesProps) {
   const handleExportCSV = () => {
     const headers = [
       "Project Name",
+      "Address",
       "Contractor",
       "Project Status",
       "Invoiced (Yes/No)",
@@ -146,6 +170,7 @@ export default function Invoices({ onSelectProject }: InvoicesProps) {
 
     const rows = filteredProjects.map((p) => [
       `"${(p.name || "").replace(/"/g, '""')}"`,
+      `"${(getProjectAddress(p) || "").replace(/"/g, '""')}"`,
       `"${(p.contractor?.nom || "Unassigned").replace(/"/g, '""')}"`,
       `"${(p.status || "").replace(/"/g, '""')}"`,
       p.isInvoiced ? "Yes" : "No",
@@ -230,7 +255,8 @@ export default function Invoices({ onSelectProject }: InvoicesProps) {
         const matchesContractor = p.contractor?.nom?.toLowerCase().includes(q);
         const matchesInvNum = p.invoiceNumber?.toLowerCase().includes(q);
         const matchesStatus = p.status?.toLowerCase().includes(q);
-        if (!matchesName && !matchesContractor && !matchesInvNum && !matchesStatus) {
+        const matchesAddr = getProjectAddress(p).toLowerCase().includes(q);
+        if (!matchesName && !matchesContractor && !matchesInvNum && !matchesStatus && !matchesAddr) {
           return false;
         }
       }
@@ -433,8 +459,13 @@ export default function Invoices({ onSelectProject }: InvoicesProps) {
             <thead>
               <tr>
                 <th style={styles.th}>Project</th>
+                <th style={styles.th}>
+                  <FaMapMarkerAlt style={{ color: "#ef4444", fontSize: "11px", marginRight: "4px" }} />
+                  Address
+                </th>
                 <th style={styles.th}>Contractor</th>
                 <th style={styles.th}>Project Status</th>
+                <th style={styles.th}>Interconnection</th>
                 <th style={styles.th}>Invoice Status</th>
                 <th style={styles.th}>Invoice #</th>
                 <th style={styles.th}>Invoice Date</th>
@@ -470,6 +501,37 @@ export default function Invoices({ onSelectProject }: InvoicesProps) {
                       )}
                     </td>
 
+                    {/* Address */}
+                    <td style={styles.td}>
+                      {getProjectAddress(p) ? (
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            color: "#334155",
+                            maxWidth: "200px",
+                          }}
+                          title={getProjectAddress(p)}
+                        >
+                          <FaMapMarkerAlt style={{ color: "#ef4444", fontSize: "11px", flexShrink: 0 }} />
+                          <span
+                            style={{
+                              fontSize: "12.5px",
+                              fontWeight: 500,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {getProjectAddress(p)}
+                          </span>
+                        </div>
+                      ) : (
+                        <span style={{ color: "#94a3b8", fontSize: "12.5px" }}>—</span>
+                      )}
+                    </td>
+
                     {/* Contractor */}
                     <td style={styles.td}>
                       <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#334155" }}>
@@ -483,6 +545,44 @@ export default function Invoices({ onSelectProject }: InvoicesProps) {
                     {/* Project Status */}
                     <td style={styles.td}>
                       <span style={styles.projectStatusPill}>{p.status || "In Discovery"}</span>
+                    </td>
+
+                    {/* Interconnection Status (Linked to Interconnection module) */}
+                    <td style={styles.td}>
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          padding: "3px 8px",
+                          borderRadius: "12px",
+                          fontSize: "11.5px",
+                          fontWeight: 600,
+                          background:
+                            p.interconnectionStatus === "PTO Granted" || p.interconnectionStatus === "Approved"
+                              ? "#ecfdf5"
+                              : p.interconnectionStatus === "Under Review" || p.interconnectionStatus === "Submitted"
+                              ? "#eff6ff"
+                              : "#f8fafc",
+                          color:
+                            p.interconnectionStatus === "PTO Granted" || p.interconnectionStatus === "Approved"
+                              ? "#059669"
+                              : p.interconnectionStatus === "Under Review" || p.interconnectionStatus === "Submitted"
+                              ? "#1d4ed8"
+                              : "#64748b",
+                          border: "1px solid",
+                          borderColor:
+                            p.interconnectionStatus === "PTO Granted" || p.interconnectionStatus === "Approved"
+                              ? "#a7f3d0"
+                              : p.interconnectionStatus === "Under Review" || p.interconnectionStatus === "Submitted"
+                              ? "#bfdbfe"
+                              : "#e2e8f0",
+                        }}
+                        title="Interconnection Status from Interconnection module"
+                      >
+                        <FaNetworkWired style={{ fontSize: "10px" }} />
+                        {p.interconnectionStatus || "Not Started"}
+                      </span>
                     </td>
 
                     {/* Invoiced Status Dropdown Selector */}
@@ -798,6 +898,11 @@ export default function Invoices({ onSelectProject }: InvoicesProps) {
                   </h3>
                   <p style={{ margin: "2px 0 0 0", fontSize: "12.5px", color: "#64748b" }}>
                     {editingProject.name}
+                    {getProjectAddress(editingProject) && (
+                      <span style={{ marginLeft: "8px", color: "#475569", fontWeight: 500 }}>
+                        • 📍 {getProjectAddress(editingProject)}
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>

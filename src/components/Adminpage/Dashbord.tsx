@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, Fragment } from "react";
-import { FaPlus, FaTrash, FaCheckCircle, FaClock, FaHourglassEnd, FaComment, FaLink, FaFile, FaImage, FaUpload, FaDownload, FaFilePdf, FaFileArchive, FaChevronDown, FaChevronUp, FaReply, FaPaperPlane, FaUserShield, FaCrown, FaSearch, FaTimes, FaEye, FaPencilAlt, FaCog, FaSort, FaSortUp, FaSortDown, FaColumns, FaFileInvoiceDollar } from "react-icons/fa";
+import { FaPlus, FaTrash, FaCheckCircle, FaClock, FaHourglassEnd, FaComment, FaLink, FaFile, FaImage, FaUpload, FaDownload, FaFilePdf, FaFileArchive, FaChevronDown, FaChevronUp, FaReply, FaPaperPlane, FaUserShield, FaCrown, FaSearch, FaTimes, FaEye, FaPencilAlt, FaCog, FaSort, FaSortUp, FaSortDown, FaColumns, FaFileInvoiceDollar, FaNetworkWired } from "react-icons/fa";
 import { NotificationCenter } from "./NotificationCenter";
 import { CustomVariablesModal } from "./CustomVariablesModal";
 import { ManageColumnsModal } from "./ManageColumnsModal";
@@ -41,11 +41,15 @@ import {
   type WorkflowStatus,
   getMentionableUsers,
   type SubadminUser,
+  getMe,
+  type AuthUser,
+  type UserPermissions,
 } from "../../lib/api";
 import { MentionInput } from "./MentionInput";
 import Contractors from "./Contractors";
 import Subadmins from "./Subadmins";
 import Invoices from "./Invoices";
+import Interconnection from "./Interconnection";
 import "./admin-responsive.css";
 
 type ProjectDetail = {
@@ -1003,12 +1007,77 @@ const initialFormData = {
 };
 
 type DashboardProps = {
-  user: { id?: string; name: string; email: string; role?: string } | null;
+  user: AuthUser | null;
   onLogout: () => void;
 };
 
 export default function Dashboard({ user, onLogout }: DashboardProps) {
-  const [activeView, setActiveView] = useState<"projects" | "contractors" | "subadmins" | "invoices">("projects");
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(user);
+
+  useEffect(() => {
+    getMe()
+      .then((fresh) => {
+        setCurrentUser(fresh);
+        localStorage.setItem("adminUser", JSON.stringify(fresh));
+      })
+      .catch(() => {});
+  }, []);
+
+  const effectivePermissions: UserPermissions = useMemo(() => {
+    if (currentUser?.role === "admin") {
+      return {
+        canViewProjects: true,
+        canViewContractors: true,
+        canViewInvoices: true,
+        canViewInterconnection: true,
+        projectAccess: "all",
+        canCreateProjects: true,
+        canEditProjects: true,
+        canDeleteProjects: true,
+        canExportProjects: true,
+        canManageContractors: true,
+        canEditInvoices: true,
+        canEditInterconnection: true,
+      };
+    }
+    const p = currentUser?.permissions;
+    return {
+      canViewProjects: p?.canViewProjects ?? true,
+      canViewContractors: p?.canViewContractors ?? true,
+      canViewInvoices: p?.canViewInvoices ?? true,
+      canViewInterconnection: p?.canViewInterconnection ?? true,
+      projectAccess: p?.projectAccess || "all",
+      canCreateProjects: p?.canCreateProjects ?? true,
+      canEditProjects: p?.canEditProjects ?? true,
+      canDeleteProjects: p?.canDeleteProjects ?? false,
+      canExportProjects: p?.canExportProjects ?? true,
+      canManageContractors: p?.canManageContractors ?? true,
+      canEditInvoices: p?.canEditInvoices ?? true,
+      canEditInterconnection: p?.canEditInterconnection ?? true,
+    };
+  }, [currentUser]);
+
+  const [activeView, setActiveView] = useState<"projects" | "contractors" | "subadmins" | "invoices" | "interconnection">("projects");
+
+  useEffect(() => {
+    if (activeView === "projects" && !effectivePermissions.canViewProjects) {
+      if (effectivePermissions.canViewInterconnection) setActiveView("interconnection");
+      else if (effectivePermissions.canViewInvoices) setActiveView("invoices");
+      else if (effectivePermissions.canViewContractors) setActiveView("contractors");
+    } else if (activeView === "contractors" && !effectivePermissions.canViewContractors) {
+      if (effectivePermissions.canViewProjects) setActiveView("projects");
+      else if (effectivePermissions.canViewInterconnection) setActiveView("interconnection");
+      else if (effectivePermissions.canViewInvoices) setActiveView("invoices");
+    } else if (activeView === "invoices" && !effectivePermissions.canViewInvoices) {
+      if (effectivePermissions.canViewProjects) setActiveView("projects");
+      else if (effectivePermissions.canViewInterconnection) setActiveView("interconnection");
+      else if (effectivePermissions.canViewContractors) setActiveView("contractors");
+    } else if (activeView === "interconnection" && !effectivePermissions.canViewInterconnection) {
+      if (effectivePermissions.canViewProjects) setActiveView("projects");
+      else if (effectivePermissions.canViewInvoices) setActiveView("invoices");
+      else if (effectivePermissions.canViewContractors) setActiveView("contractors");
+    }
+  }, [effectivePermissions, activeView]);
   const [projects, setProjects] = useState<ProjectDetail[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [contractorsList, setContractorsList] = useState<Contractor[]>([]);
@@ -1321,6 +1390,18 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       return;
     }
 
+    if (editingId) {
+      if (!effectivePermissions.canEditProjects) {
+        alert("You do not have permission to edit projects.");
+        return;
+      }
+    } else {
+      if (!effectivePermissions.canCreateProjects) {
+        alert("You do not have permission to create projects.");
+        return;
+      }
+    }
+
     try {
       if (editingId) {
         const updated = await updateProject(editingId, {
@@ -1427,6 +1508,10 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   };
 
   const handleUpdateField = async (project: ProjectDetail, fieldName: string, value: any): Promise<boolean> => {
+    if (!effectivePermissions.canEditProjects) {
+      alert("You do not have permission to edit this project.");
+      return false;
+    }
     try {
       const updated = await updateProject(project.id, { [fieldName]: value } as any);
       setProjects(
@@ -1474,6 +1559,144 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       return await handleUpdateField(project, "description", trimmed);
     }
     return true;
+  };
+
+  const handleUpdatePM = async (project: ProjectDetail, userEmailOrId: string) => {
+    if (!effectivePermissions.canEditProjects) {
+      alert("You do not have permission to edit this project.");
+      return;
+    }
+    if (!userEmailOrId) {
+      try {
+        const updated = await updateProject(project.id, { pmName: "", pmEmails: "" } as any);
+        setProjects(
+          projects.map((p) =>
+            p.id === project.id
+              ? {
+                  ...p,
+                  ...updated,
+                  id: updated._id,
+                  pmName: "",
+                  pmEmails: "",
+                  comments: mapProjectComments(updated),
+                  links: mapProjectLinks(updated),
+                  files: mapProjectToFileItems(updated),
+                  images: mapProjectToImageItems(updated),
+                }
+              : p
+          )
+        );
+      } catch (err: any) {
+        alert(err.message || "Error updating PM");
+      }
+      return;
+    }
+
+    const matchedUser = mentionableUsers.find(
+      (u) =>
+        u.email.toLowerCase() === userEmailOrId.toLowerCase() ||
+        u.name.toLowerCase() === userEmailOrId.toLowerCase() ||
+        u._id === userEmailOrId
+    );
+
+    const newPmName = matchedUser ? matchedUser.name : userEmailOrId;
+    const newPmEmails = matchedUser ? matchedUser.email : "";
+
+    try {
+      const updated = await updateProject(project.id, {
+        pmName: newPmName,
+        pmEmails: newPmEmails,
+      } as any);
+
+      setProjects(
+        projects.map((p) =>
+          p.id === project.id
+            ? {
+                ...p,
+                ...updated,
+                id: updated._id,
+                pmName: newPmName,
+                pmEmails: newPmEmails,
+                comments: mapProjectComments(updated),
+                links: mapProjectLinks(updated),
+                files: mapProjectToFileItems(updated),
+                images: mapProjectToImageItems(updated),
+              }
+            : p
+        )
+      );
+    } catch (err: any) {
+      alert(err.message || "Error updating PM");
+    }
+  };
+
+  const handleUpdateDrafter = async (project: ProjectDetail, userEmailOrId: string) => {
+    if (!effectivePermissions.canEditProjects) {
+      alert("You do not have permission to edit this project.");
+      return;
+    }
+    if (!userEmailOrId) {
+      try {
+        const updated = await updateProject(project.id, { drafterName: "", drafterEmails: "" } as any);
+        setProjects(
+          projects.map((p) =>
+            p.id === project.id
+              ? {
+                  ...p,
+                  ...updated,
+                  id: updated._id,
+                  drafterName: "",
+                  drafterEmails: "",
+                  comments: mapProjectComments(updated),
+                  links: mapProjectLinks(updated),
+                  files: mapProjectToFileItems(updated),
+                  images: mapProjectToImageItems(updated),
+                }
+              : p
+          )
+        );
+      } catch (err: any) {
+        alert(err.message || "Error updating Drafter");
+      }
+      return;
+    }
+
+    const matchedUser = mentionableUsers.find(
+      (u) =>
+        u.email.toLowerCase() === userEmailOrId.toLowerCase() ||
+        u.name.toLowerCase() === userEmailOrId.toLowerCase() ||
+        u._id === userEmailOrId
+    );
+
+    const newDrafterName = matchedUser ? matchedUser.name : userEmailOrId;
+    const newDrafterEmails = matchedUser ? matchedUser.email : "";
+
+    try {
+      const updated = await updateProject(project.id, {
+        drafterName: newDrafterName,
+        drafterEmails: newDrafterEmails,
+      } as any);
+
+      setProjects(
+        projects.map((p) =>
+          p.id === project.id
+            ? {
+                ...p,
+                ...updated,
+                id: updated._id,
+                drafterName: newDrafterName,
+                drafterEmails: newDrafterEmails,
+                comments: mapProjectComments(updated),
+                links: mapProjectLinks(updated),
+                files: mapProjectToFileItems(updated),
+                images: mapProjectToImageItems(updated),
+              }
+            : p
+        )
+      );
+    } catch (err: any) {
+      alert(err.message || "Error updating Drafter");
+    }
   };
 
   const handleUpdateCustomField = async (project: ProjectDetail, fieldKey: string, value: any): Promise<boolean> => {
@@ -2215,6 +2438,18 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
     const projectService = p.serviceType || "Plan Set Design";
     if (projectService !== activeService) return false;
 
+    // Permissions: restricted to assigned projects if projectAccess is "assigned"
+    if (effectivePermissions.projectAccess === "assigned" && currentUser?.role !== "admin") {
+      const uEmail = (currentUser?.email || "").toLowerCase();
+      const uName = (currentUser?.name || "").toLowerCase();
+      const isAssigned =
+        (p.pmEmails || "").toLowerCase().includes(uEmail) ||
+        (p.pmName || "").toLowerCase().includes(uName) ||
+        (p.drafterEmails || "").toLowerCase().includes(uEmail) ||
+        (p.drafterName || "").toLowerCase().includes(uName);
+      if (!isAssigned) return false;
+    }
+
     if (!searchTerm.trim()) return true;
     const query = searchTerm.toLowerCase().trim();
     const nameMatch = (p.name || "").toLowerCase().includes(query);
@@ -2955,72 +3190,212 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
         {/* 8. PM NAME */}
         {!hiddenColumns.includes("pmName") && (
           <td style={styles.td} onClick={(e) => e.stopPropagation()}>
-            <input
-              type="text"
+            <select
               className="admin-table-input"
-              defaultValue={project.pmName || ""}
-              placeholder="PM Name..."
-              onBlur={(e) => {
-                if (e.target.value !== (project.pmName || "")) {
-                  handleUpdateField(project, "pmName", e.target.value);
+              value={
+                mentionableUsers.find(
+                  (u) =>
+                    u.name.toLowerCase() === (project.pmName || "").toLowerCase() ||
+                    u.email.toLowerCase() === (project.pmEmails || "").toLowerCase()
+                )?.email || (project.pmName ? `custom:${project.pmName}` : "")
+              }
+              onChange={(e) => {
+                const val = e.target.value;
+                if (!val) {
+                  handleUpdatePM(project, "");
+                } else if (!val.startsWith("custom:")) {
+                  handleUpdatePM(project, val);
                 }
               }}
-              style={{ width: "115px" }}
-            />
+              style={{
+                width: "135px",
+                padding: "3px 6px",
+                fontSize: "12px",
+                fontWeight: 600,
+                borderRadius: "4px",
+                border: "1px solid #cbd5e1",
+                background: project.pmName ? "#f0f9ff" : "#ffffff",
+                color: project.pmName ? "#0369a1" : "#64748b",
+                cursor: "pointer",
+              }}
+              title="Select Project Manager from users"
+            >
+              <option value="">-- No PM --</option>
+              {mentionableUsers.map((u) => (
+                <option key={u._id} value={u.email}>
+                  {u.name} ({u.role})
+                </option>
+              ))}
+              {project.pmName &&
+                !mentionableUsers.some(
+                  (u) =>
+                    u.name.toLowerCase() === project.pmName?.toLowerCase() ||
+                    u.email.toLowerCase() === project.pmEmails?.toLowerCase()
+                ) && (
+                  <option value={`custom:${project.pmName}`}>
+                    {project.pmName} (Current)
+                  </option>
+                )}
+            </select>
           </td>
         )}
 
         {/* 9. PM EMAILS */}
         {!hiddenColumns.includes("pmEmails") && (
           <td style={styles.td} onClick={(e) => e.stopPropagation()}>
-            <input
-              type="text"
+            <select
               className="admin-table-input"
-              defaultValue={project.pmEmails || ""}
-              placeholder="pm@example.com"
-              onBlur={(e) => {
-                if (e.target.value !== (project.pmEmails || "")) {
-                  handleUpdateField(project, "pmEmails", e.target.value);
+              value={
+                mentionableUsers.find(
+                  (u) =>
+                    u.email.toLowerCase() === (project.pmEmails || "").toLowerCase() ||
+                    u.name.toLowerCase() === (project.pmName || "").toLowerCase()
+                )?.email || (project.pmEmails ? `custom:${project.pmEmails}` : "")
+              }
+              onChange={(e) => {
+                const val = e.target.value;
+                if (!val) {
+                  handleUpdatePM(project, "");
+                } else if (!val.startsWith("custom:")) {
+                  handleUpdatePM(project, val);
                 }
               }}
-              style={{ width: "135px" }}
-            />
+              style={{
+                width: "155px",
+                padding: "3px 6px",
+                fontSize: "12px",
+                fontWeight: 600,
+                borderRadius: "4px",
+                border: "1px solid #cbd5e1",
+                background: project.pmEmails ? "#f8fafc" : "#ffffff",
+                color: project.pmEmails ? "#334155" : "#64748b",
+                cursor: "pointer",
+              }}
+              title="Select PM Email from users"
+            >
+              <option value="">-- No PM Email --</option>
+              {mentionableUsers.map((u) => (
+                <option key={u._id} value={u.email}>
+                  {u.email} ({u.name})
+                </option>
+              ))}
+              {project.pmEmails &&
+                !mentionableUsers.some(
+                  (u) =>
+                    u.email.toLowerCase() === project.pmEmails?.toLowerCase() ||
+                    u.name.toLowerCase() === project.pmName?.toLowerCase()
+                ) && (
+                  <option value={`custom:${project.pmEmails}`}>
+                    {project.pmEmails} (Current)
+                  </option>
+                )}
+            </select>
           </td>
         )}
 
         {/* 10. DRAFTER */}
         {!hiddenColumns.includes("drafterName") && (
           <td style={styles.td} onClick={(e) => e.stopPropagation()}>
-            <input
-              type="text"
+            <select
               className="admin-table-input"
-              defaultValue={project.drafterName || ""}
-              placeholder="Drafter..."
-              onBlur={(e) => {
-                if (e.target.value !== (project.drafterName || "")) {
-                  handleUpdateField(project, "drafterName", e.target.value);
+              value={
+                mentionableUsers.find(
+                  (u) =>
+                    u.name.toLowerCase() === (project.drafterName || "").toLowerCase() ||
+                    u.email.toLowerCase() === (project.drafterEmails || "").toLowerCase()
+                )?.email || (project.drafterName ? `custom:${project.drafterName}` : "")
+              }
+              onChange={(e) => {
+                const val = e.target.value;
+                if (!val) {
+                  handleUpdateDrafter(project, "");
+                } else if (!val.startsWith("custom:")) {
+                  handleUpdateDrafter(project, val);
                 }
               }}
-              style={{ width: "115px" }}
-            />
+              style={{
+                width: "135px",
+                padding: "3px 6px",
+                fontSize: "12px",
+                fontWeight: 600,
+                borderRadius: "4px",
+                border: "1px solid #cbd5e1",
+                background: project.drafterName ? "#f0fdf4" : "#ffffff",
+                color: project.drafterName ? "#166534" : "#64748b",
+                cursor: "pointer",
+              }}
+              title="Select Drafter from users"
+            >
+              <option value="">-- No Drafter --</option>
+              {mentionableUsers.map((u) => (
+                <option key={u._id} value={u.email}>
+                  {u.name} ({u.role})
+                </option>
+              ))}
+              {project.drafterName &&
+                !mentionableUsers.some(
+                  (u) =>
+                    u.name.toLowerCase() === project.drafterName?.toLowerCase() ||
+                    u.email.toLowerCase() === project.drafterEmails?.toLowerCase()
+                ) && (
+                  <option value={`custom:${project.drafterName}`}>
+                    {project.drafterName} (Current)
+                  </option>
+                )}
+            </select>
           </td>
         )}
 
         {/* 11. DRAFTER EMAILS */}
         {!hiddenColumns.includes("drafterEmails") && (
           <td style={styles.td} onClick={(e) => e.stopPropagation()}>
-            <input
-              type="text"
+            <select
               className="admin-table-input"
-              defaultValue={project.drafterEmails || ""}
-              placeholder="drafter@example.com"
-              onBlur={(e) => {
-                if (e.target.value !== (project.drafterEmails || "")) {
-                  handleUpdateField(project, "drafterEmails", e.target.value);
+              value={
+                mentionableUsers.find(
+                  (u) =>
+                    u.email.toLowerCase() === (project.drafterEmails || "").toLowerCase() ||
+                    u.name.toLowerCase() === (project.drafterName || "").toLowerCase()
+                )?.email || (project.drafterEmails ? `custom:${project.drafterEmails}` : "")
+              }
+              onChange={(e) => {
+                const val = e.target.value;
+                if (!val) {
+                  handleUpdateDrafter(project, "");
+                } else if (!val.startsWith("custom:")) {
+                  handleUpdateDrafter(project, val);
                 }
               }}
-              style={{ width: "135px" }}
-            />
+              style={{
+                width: "155px",
+                padding: "3px 6px",
+                fontSize: "12px",
+                fontWeight: 600,
+                borderRadius: "4px",
+                border: "1px solid #cbd5e1",
+                background: project.drafterEmails ? "#f8fafc" : "#ffffff",
+                color: project.drafterEmails ? "#334155" : "#64748b",
+                cursor: "pointer",
+              }}
+              title="Select Drafter Email from users"
+            >
+              <option value="">-- No Drafter Email --</option>
+              {mentionableUsers.map((u) => (
+                <option key={u._id} value={u.email}>
+                  {u.email} ({u.name})
+                </option>
+              ))}
+              {project.drafterEmails &&
+                !mentionableUsers.some(
+                  (u) =>
+                    u.email.toLowerCase() === project.drafterEmails?.toLowerCase() ||
+                    u.name.toLowerCase() === project.drafterName?.toLowerCase()
+                ) && (
+                  <option value={`custom:${project.drafterEmails}`}>
+                    {project.drafterEmails} (Current)
+                  </option>
+                )}
+            </select>
           </td>
         )}
 
@@ -3367,26 +3742,28 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
               <FaEye />
             </button>
 
-            <button
-              style={{
-                width: "28px",
-                height: "28px",
-                borderRadius: "7px",
-                background: "#fef2f2",
-                border: "1px solid #fecaca",
-                color: "#ef4444",
-                cursor: "pointer",
-                fontSize: "12px",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                transition: "all 0.15s ease",
-              }}
-              onClick={() => handleDelete(project.id, project.name)}
-              title="Delete project"
-            >
-              <FaTrash />
-            </button>
+            {effectivePermissions.canDeleteProjects && (
+              <button
+                style={{
+                  width: "28px",
+                  height: "28px",
+                  borderRadius: "7px",
+                  background: "#fef2f2",
+                  border: "1px solid #fecaca",
+                  color: "#ef4444",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.15s ease",
+                }}
+                onClick={() => handleDelete(project.id, project.name)}
+                title="Delete project"
+              >
+                <FaTrash />
+              </button>
+            )}
           </div>
         </td>
       </tr>
@@ -3406,7 +3783,9 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                 ? "Contractors Management"
                 : activeView === "invoices"
                 ? "Invoices Management"
-                : "Sub-Administrators Management"}
+                : activeView === "interconnection"
+                ? "Interconnection Management"
+                : "Users & Permissions"}
             </h1>
             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "6px", flexWrap: "wrap" }}>
               <p className="admin-subtitle" style={{ margin: 0 }}>
@@ -3433,30 +3812,44 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
           </div>
           <div className="admin-header-actions">
             <div className="admin-view-switch">
-              <button
-                className={`admin-view-switch-btn ${activeView === "projects" ? "active" : ""}`}
-                onClick={() => setActiveView("projects")}
-              >
-                Projects
-              </button>
-              <button
-                className={`admin-view-switch-btn ${activeView === "contractors" ? "active" : ""}`}
-                onClick={() => setActiveView("contractors")}
-              >
-                Contractors
-              </button>
-              <button
-                className={`admin-view-switch-btn ${activeView === "invoices" ? "active" : ""}`}
-                onClick={() => setActiveView("invoices")}
-              >
-                <FaFileInvoiceDollar style={{ marginRight: "4px" }} /> Invoices
-              </button>
-              {user?.role === "admin" && (
+              {effectivePermissions.canViewProjects && (
+                <button
+                  className={`admin-view-switch-btn ${activeView === "projects" ? "active" : ""}`}
+                  onClick={() => setActiveView("projects")}
+                >
+                  Projects
+                </button>
+              )}
+              {effectivePermissions.canViewContractors && (
+                <button
+                  className={`admin-view-switch-btn ${activeView === "contractors" ? "active" : ""}`}
+                  onClick={() => setActiveView("contractors")}
+                >
+                  Contractors
+                </button>
+              )}
+              {effectivePermissions.canViewInvoices && (
+                <button
+                  className={`admin-view-switch-btn ${activeView === "invoices" ? "active" : ""}`}
+                  onClick={() => setActiveView("invoices")}
+                >
+                  <FaFileInvoiceDollar style={{ marginRight: "4px" }} /> Invoices
+                </button>
+              )}
+              {effectivePermissions.canViewInterconnection && (
+                <button
+                  className={`admin-view-switch-btn ${activeView === "interconnection" ? "active" : ""}`}
+                  onClick={() => setActiveView("interconnection")}
+                >
+                  <FaNetworkWired style={{ marginRight: "4px" }} /> Interconnection
+                </button>
+              )}
+              {currentUser?.role === "admin" && (
                 <button
                   className={`admin-view-switch-btn ${activeView === "subadmins" ? "active" : ""}`}
                   onClick={() => setActiveView("subadmins")}
                 >
-                  <FaUserShield style={{ marginRight: "4px" }} /> Sub-Admins
+                  <FaUserShield style={{ marginRight: "4px" }} /> Users & Permissions
                 </button>
               )}
             </div>
@@ -3511,9 +3904,11 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                   Columns {hiddenColumns.length > 0 ? `(${hiddenColumns.length} hidden)` : ""}
                 </button>
 
-                <button className="admin-btn-primary" onClick={() => setShowForm(true)}>
-                  <FaPlus /> Add Project
-                </button>
+                {effectivePermissions.canCreateProjects && (
+                  <button className="admin-btn-primary" onClick={() => setShowForm(true)}>
+                    <FaPlus /> Add Project
+                  </button>
+                )}
               </>
             )}
             <button className="admin-btn-outline" onClick={onLogout}>
@@ -3533,16 +3928,49 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
         />
       ) : activeView === "invoices" ? (
         <Invoices
+          canEdit={effectivePermissions.canEditInvoices}
           onSelectProject={(projectId) => {
             setActiveView("projects");
             setSelectedProjectId(projectId);
             setShowDetails(true);
           }}
         />
-      ) : activeView === "subadmins" && user?.role === "admin" ? (
-        <Subadmins currentUser={user} />
+      ) : activeView === "interconnection" ? (
+        <Interconnection
+          canEdit={effectivePermissions.canEditInterconnection}
+          onSelectProject={(projectId) => {
+            setActiveView("projects");
+            setSelectedProjectId(projectId);
+            setShowDetails(true);
+          }}
+        />
+      ) : activeView === "subadmins" && currentUser?.role === "admin" ? (
+        <Subadmins currentUser={currentUser} />
       ) : (
         <>
+        {/* ASSIGNED PROJECTS NOTICE BANNER */}
+        {effectivePermissions.projectAccess === "assigned" && currentUser?.role !== "admin" && (
+          <div
+            style={{
+              padding: "12px 18px",
+              background: "#fff7ed",
+              border: "1.5px solid #fed7aa",
+              borderRadius: "12px",
+              color: "#9a3412",
+              fontSize: "13.5px",
+              fontWeight: 600,
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              boxShadow: "0 2px 6px rgba(234, 88, 12, 0.05)",
+            }}
+          >
+            <span style={{ fontSize: "18px" }}>👤</span>
+            <div>
+              <strong>Restricted Visibility Mode:</strong> Only projects where you are assigned as Project Manager (PM) or Drafter are displayed.
+            </div>
+          </div>
+        )}
       {/* STATS SECTION */}
       <div className="admin-stats-grid">
         <div
@@ -3846,48 +4274,124 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                 <div className="admin-form-row">
                   <div>
                     <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#475569", marginBottom: "5px" }}>{getLabel("pmName", "PM Name")}</label>
-                    <input
-                      type="text"
-                      placeholder="Project Manager Name"
-                      value={formData.pmName}
-                      onChange={(e) => setFormData({ ...formData, pmName: e.target.value })}
+                    <select
+                      value={
+                        mentionableUsers.find(
+                          (u) =>
+                            u.name.toLowerCase() === (formData.pmName || "").toLowerCase() ||
+                            u.email.toLowerCase() === (formData.pmEmails || "").toLowerCase()
+                        )?.email || ""
+                      }
+                      onChange={(e) => {
+                        const email = e.target.value;
+                        const user = mentionableUsers.find((u) => u.email === email);
+                        if (user) {
+                          setFormData({ ...formData, pmName: user.name, pmEmails: user.email });
+                        } else {
+                          setFormData({ ...formData, pmName: "", pmEmails: "" });
+                        }
+                      }}
                       style={styles.input}
-                    />
+                    >
+                      <option value="">-- Select PM User --</option>
+                      {mentionableUsers.map((u) => (
+                        <option key={u._id} value={u.email}>
+                          {u.name} ({u.role})
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div>
                     <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#475569", marginBottom: "5px" }}>{getLabel("pmEmails", "PM Emails")}</label>
-                    <input
-                      type="text"
-                      placeholder="pm@example.com"
-                      value={formData.pmEmails}
-                      onChange={(e) => setFormData({ ...formData, pmEmails: e.target.value })}
+                    <select
+                      value={
+                        mentionableUsers.find(
+                          (u) =>
+                            u.email.toLowerCase() === (formData.pmEmails || "").toLowerCase() ||
+                            u.name.toLowerCase() === (formData.pmName || "").toLowerCase()
+                        )?.email || ""
+                      }
+                      onChange={(e) => {
+                        const email = e.target.value;
+                        const user = mentionableUsers.find((u) => u.email === email);
+                        if (user) {
+                          setFormData({ ...formData, pmName: user.name, pmEmails: user.email });
+                        } else {
+                          setFormData({ ...formData, pmName: "", pmEmails: "" });
+                        }
+                      }}
                       style={styles.input}
-                    />
+                    >
+                      <option value="">-- Select PM Email --</option>
+                      {mentionableUsers.map((u) => (
+                        <option key={u._id} value={u.email}>
+                          {u.email} ({u.name})
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
                 <div className="admin-form-row">
                   <div>
                     <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#475569", marginBottom: "5px" }}>{getLabel("drafterName", "Drafter Name")}</label>
-                    <input
-                      type="text"
-                      placeholder="Drafter / Designer Name"
-                      value={formData.drafterName}
-                      onChange={(e) => setFormData({ ...formData, drafterName: e.target.value })}
+                    <select
+                      value={
+                        mentionableUsers.find(
+                          (u) =>
+                            u.name.toLowerCase() === (formData.drafterName || "").toLowerCase() ||
+                            u.email.toLowerCase() === (formData.drafterEmails || "").toLowerCase()
+                        )?.email || ""
+                      }
+                      onChange={(e) => {
+                        const email = e.target.value;
+                        const user = mentionableUsers.find((u) => u.email === email);
+                        if (user) {
+                          setFormData({ ...formData, drafterName: user.name, drafterEmails: user.email });
+                        } else {
+                          setFormData({ ...formData, drafterName: "", drafterEmails: "" });
+                        }
+                      }}
                       style={styles.input}
-                    />
+                    >
+                      <option value="">-- Select Drafter User --</option>
+                      {mentionableUsers.map((u) => (
+                        <option key={u._id} value={u.email}>
+                          {u.name} ({u.role})
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div>
                     <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#475569", marginBottom: "5px" }}>{getLabel("drafterEmails", "Drafter Emails")}</label>
-                    <input
-                      type="text"
-                      placeholder="drafter@example.com"
-                      value={formData.drafterEmails}
-                      onChange={(e) => setFormData({ ...formData, drafterEmails: e.target.value })}
+                    <select
+                      value={
+                        mentionableUsers.find(
+                          (u) =>
+                            u.email.toLowerCase() === (formData.drafterEmails || "").toLowerCase() ||
+                            u.name.toLowerCase() === (formData.drafterName || "").toLowerCase()
+                        )?.email || ""
+                      }
+                      onChange={(e) => {
+                        const email = e.target.value;
+                        const user = mentionableUsers.find((u) => u.email === email);
+                        if (user) {
+                          setFormData({ ...formData, drafterName: user.name, drafterEmails: user.email });
+                        } else {
+                          setFormData({ ...formData, drafterName: "", drafterEmails: "" });
+                        }
+                      }}
                       style={styles.input}
-                    />
+                    >
+                      <option value="">-- Select Drafter Email --</option>
+                      {mentionableUsers.map((u) => (
+                        <option key={u._id} value={u.email}>
+                          {u.email} ({u.name})
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
@@ -4070,74 +4574,76 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
             }}
           >
             {/* EXPORT BUTTONS */}
-            <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
-              <span style={{ fontSize: "11px", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", marginRight: "4px" }}>
-                Export:
-              </span>
-              <button
-                style={{
-                  background: "#f0fdf4",
-                  color: "#16a34a",
-                  border: "1px solid #bbf7d0",
-                  padding: "6px 13px",
-                  borderRadius: "8px",
-                  fontWeight: 600,
-                  fontSize: "12px",
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  transition: "all 0.2s ease",
-                  boxShadow: "0 1px 2px rgba(22, 163, 74, 0.05)",
-                }}
-                onClick={handleExportCSV}
-                title="Export projects to CSV"
-              >
-                <FaDownload style={{ fontSize: "11px" }} /> CSV
-              </button>
-              <button
-                style={{
-                  background: "#fef2f2",
-                  color: "#dc2626",
-                  border: "1px solid #fecaca",
-                  padding: "6px 13px",
-                  borderRadius: "8px",
-                  fontWeight: 600,
-                  fontSize: "12px",
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  transition: "all 0.2s ease",
-                  boxShadow: "0 1px 2px rgba(220, 38, 38, 0.05)",
-                }}
-                onClick={handleExportPDF}
-                title="Export projects to PDF"
-              >
-                <FaFilePdf style={{ fontSize: "11px" }} /> PDF
-              </button>
-              <button
-                style={{
-                  background: "#f5f3ff",
-                  color: "#7c3aed",
-                  border: "1px solid #ddd6fe",
-                  padding: "6px 13px",
-                  borderRadius: "8px",
-                  fontWeight: 600,
-                  fontSize: "12px",
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  transition: "all 0.2s ease",
-                  boxShadow: "0 1px 2px rgba(124, 58, 237, 0.05)",
-                }}
-                onClick={handleExportAllUploadedFilesZip}
-                title="Download all attached files (ZIP)"
-              >
-                <FaFileArchive style={{ fontSize: "11px" }} /> ZIP
-              </button>
-            </div>
+            {effectivePermissions.canExportProjects && (
+              <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                <span style={{ fontSize: "11px", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", marginRight: "4px" }}>
+                  Export:
+                </span>
+                <button
+                  style={{
+                    background: "#f0fdf4",
+                    color: "#16a34a",
+                    border: "1px solid #bbf7d0",
+                    padding: "6px 13px",
+                    borderRadius: "8px",
+                    fontWeight: 600,
+                    fontSize: "12px",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    transition: "all 0.2s ease",
+                    boxShadow: "0 1px 2px rgba(22, 163, 74, 0.05)",
+                  }}
+                  onClick={handleExportCSV}
+                  title="Export projects to CSV"
+                >
+                  <FaDownload style={{ fontSize: "11px" }} /> CSV
+                </button>
+                <button
+                  style={{
+                    background: "#fef2f2",
+                    color: "#dc2626",
+                    border: "1px solid #fecaca",
+                    padding: "6px 13px",
+                    borderRadius: "8px",
+                    fontWeight: 600,
+                    fontSize: "12px",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    transition: "all 0.2s ease",
+                    boxShadow: "0 1px 2px rgba(220, 38, 38, 0.05)",
+                  }}
+                  onClick={handleExportPDF}
+                  title="Export projects to PDF"
+                >
+                  <FaFilePdf style={{ fontSize: "11px" }} /> PDF
+                </button>
+                <button
+                  style={{
+                    background: "#f5f3ff",
+                    color: "#7c3aed",
+                    border: "1px solid #ddd6fe",
+                    padding: "6px 13px",
+                    borderRadius: "8px",
+                    fontWeight: 600,
+                    fontSize: "12px",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    transition: "all 0.2s ease",
+                    boxShadow: "0 1px 2px rgba(124, 58, 237, 0.05)",
+                  }}
+                  onClick={handleExportAllUploadedFilesZip}
+                  title="Download all attached files (ZIP)"
+                >
+                  <FaFileArchive style={{ fontSize: "11px" }} /> ZIP
+                </button>
+              </div>
+            )}
 
             {/* SLEEK & MODERN SEARCH BAR */}
             <div

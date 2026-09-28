@@ -9,6 +9,41 @@ function signToken(user) {
   );
 }
 
+export function getUserPermissions(user) {
+  if (user.role === "admin") {
+    return {
+      canViewProjects: true,
+      canViewContractors: true,
+      canViewInvoices: true,
+      canViewInterconnection: true,
+      projectAccess: "all",
+      canCreateProjects: true,
+      canEditProjects: true,
+      canDeleteProjects: true,
+      canExportProjects: true,
+      canManageContractors: true,
+      canEditInvoices: true,
+      canEditInterconnection: true,
+    };
+  }
+
+  const p = user.permissions || {};
+  return {
+    canViewProjects: p.canViewProjects ?? true,
+    canViewContractors: p.canViewContractors ?? true,
+    canViewInvoices: p.canViewInvoices ?? true,
+    canViewInterconnection: p.canViewInterconnection ?? true,
+    projectAccess: p.projectAccess || "all",
+    canCreateProjects: p.canCreateProjects ?? true,
+    canEditProjects: p.canEditProjects ?? true,
+    canDeleteProjects: p.canDeleteProjects ?? false,
+    canExportProjects: p.canExportProjects ?? true,
+    canManageContractors: p.canManageContractors ?? true,
+    canEditInvoices: p.canEditInvoices ?? true,
+    canEditInterconnection: p.canEditInterconnection ?? true,
+  };
+}
+
 export async function register(req, res) {
   const { name, email, password, role } = req.body;
 
@@ -22,7 +57,13 @@ export async function register(req, res) {
 
   res.status(201).json({
     token,
-    user: { id: user._id, name: user.name, email: user.email, role: user.role },
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      permissions: getUserPermissions(user),
+    },
   });
 }
 
@@ -41,6 +82,27 @@ export async function login(req, res) {
 
   res.json({
     token,
-    user: { id: user._id, name: user.name, email: user.email, role: user.role },
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      permissions: getUserPermissions(user),
+    },
+  });
+}
+
+export async function getMe(req, res) {
+  const user = await User.findById(req.user.id);
+  if (!user) {
+    return res.status(404).json({ message: "Utilisateur introuvable" });
+  }
+
+  res.json({
+    id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    permissions: getUserPermissions(user),
   });
 }

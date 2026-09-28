@@ -19,7 +19,7 @@ export async function getSubadmins(req, res) {
 
 // Create a new sub-admin
 export async function createSubadmin(req, res) {
-  const { name, email, password } = req.body;
+  const { name, email, password, role, permissions } = req.body;
 
   if (!name || !email || !password) {
     return res.status(400).json({ message: "Nom, email et mot de passe sont requis" });
@@ -34,7 +34,8 @@ export async function createSubadmin(req, res) {
     name,
     email,
     password,
-    role: "subadmin",
+    role: role && ["admin", "subadmin"].includes(role) ? role : "subadmin",
+    permissions: permissions || {},
   });
 
   res.status(201).json({
@@ -44,6 +45,7 @@ export async function createSubadmin(req, res) {
       name: user.name,
       email: user.email,
       role: user.role,
+      permissions: user.permissions,
       createdAt: user.createdAt,
     },
   });
@@ -51,7 +53,7 @@ export async function createSubadmin(req, res) {
 
 // Update a sub-admin
 export async function updateSubadmin(req, res) {
-  const { name, email, password, role } = req.body;
+  const { name, email, password, role, permissions } = req.body;
 
   const user = await User.findById(req.params.id);
   if (!user) {
@@ -73,6 +75,12 @@ export async function updateSubadmin(req, res) {
   if (password && password.trim().length > 0) {
     user.password = password;
   }
+  if (permissions) {
+    user.permissions = {
+      ...(user.permissions?.toObject ? user.permissions.toObject() : user.permissions || {}),
+      ...permissions,
+    };
+  }
 
   await user.save();
 
@@ -83,6 +91,7 @@ export async function updateSubadmin(req, res) {
       name: user.name,
       email: user.email,
       role: user.role,
+      permissions: user.permissions,
       createdAt: user.createdAt,
     },
   });
