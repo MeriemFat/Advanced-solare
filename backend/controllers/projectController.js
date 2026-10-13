@@ -79,7 +79,7 @@ export async function getProject(req, res) {
     CONTRACTOR_FIELDS
   );
   if (!project) {
-    return res.status(404).json({ message: "Projet introuvable" });
+    return res.status(404).json({ message: "Project not found" });
   }
   res.json(project);
 }
@@ -119,7 +119,7 @@ export async function createProject(req, res) {
   if (req.user && req.user.role === "subadmin") {
     const userDoc = await User.findById(req.user.id).select("permissions");
     if (userDoc?.permissions && userDoc.permissions.canCreateProjects === false) {
-      return res.status(403).json({ message: "Vous n'avez pas l'autorisation de créer des projets" });
+      return res.status(403).json({ message: "You do not have permission to create projects" });
     }
   }
 
@@ -141,14 +141,14 @@ export async function createProject(req, res) {
   const finalSubmittedDate = (submittedDate && typeof submittedDate === "string") ? submittedDate.trim() : "";
   if (finalSubmittedDate && finalSubmittedDate > todayStr) {
     return res.status(400).json({
-      message: "La date de soumission (submittedDate) ne peut pas être dans le futur (aujourd'hui ou passé).",
+      message: "Submitted Date (submittedDate) cannot be in the future (today or past).",
     });
   }
 
   const finalDate = date || futureDateStr;
   if (date && date < todayStr) {
     return res.status(400).json({
-      message: "La date cible (Target Date) ne peut pas être dans le passé (aujourd'hui ou futur).",
+      message: "Target Date cannot be in the past (today or future).",
     });
   }
 
@@ -194,8 +194,8 @@ export async function createProject(req, res) {
   // Broadcast creation notification to all dashboard users
   const author = await resolveAuthor(req);
   notificationService.createAndBroadcastNotification({
-    title: "New Project Created",
-    message: `${author.name} created project "${project.name}".`,
+    title: "Project Added Successfully",
+    message: `Your project "${project.name}" has been added successfully.`,
     type: "create",
     projectId: project._id,
     projectName: project.name,
@@ -215,7 +215,7 @@ export async function updateProject(req, res) {
     const userDoc = await User.findById(req.user.id).select("permissions");
     if (userDoc?.permissions) {
       if (userDoc.permissions.canEditProjects === false) {
-        return res.status(403).json({ message: "Vous n'avez pas l'autorisation de modifier des projets" });
+        return res.status(403).json({ message: "You do not have permission to edit projects" });
       }
       if (
         userDoc.permissions.canEditInvoices === false &&
@@ -226,7 +226,7 @@ export async function updateProject(req, res) {
           req.body.invoiceDate !== undefined ||
           req.body.invoiceNotes !== undefined)
       ) {
-        return res.status(403).json({ message: "Vous n'avez pas l'autorisation de modifier les factures" });
+        return res.status(403).json({ message: "You do not have permission to edit invoices" });
       }
       if (
         userDoc.permissions.canEditInterconnection === false &&
@@ -240,14 +240,14 @@ export async function updateProject(req, res) {
           req.body.interconnectionFee !== undefined ||
           req.body.interconnectionNotes !== undefined)
       ) {
-        return res.status(403).json({ message: "Vous n'avez pas l'autorisation de modifier les interconnexions" });
+        return res.status(403).json({ message: "You do not have permission to edit interconnections" });
       }
     }
   }
 
   const existing = await Project.findById(req.params.id);
   if (!existing) {
-    return res.status(404).json({ message: "Projet introuvable" });
+    return res.status(404).json({ message: "Project not found" });
   }
 
   const {
@@ -300,7 +300,7 @@ export async function updateProject(req, res) {
   if (date !== undefined) {
     if (date && date !== existing.date && date < todayStr) {
       return res.status(400).json({
-        message: "La date cible (Target Date) ne peut pas être dans le passé (aujourd'hui ou futur).",
+        message: "Target Date cannot be in the past (today or future).",
       });
     }
     updateData.date = date;
@@ -319,7 +319,7 @@ export async function updateProject(req, res) {
     const trimmedSubmitted = typeof submittedDate === "string" ? submittedDate.trim() : "";
     if (trimmedSubmitted && trimmedSubmitted !== existing.submittedDate && trimmedSubmitted > todayStr) {
       return res.status(400).json({
-        message: "La date de soumission (submittedDate) ne peut pas être dans le futur (aujourd'hui ou passé).",
+        message: "Submitted Date (submittedDate) cannot be in the future (today or past).",
       });
     }
     updateData.submittedDate = trimmedSubmitted;
@@ -410,13 +410,13 @@ export async function deleteProject(req, res) {
   if (req.user && req.user.role === "subadmin") {
     const userDoc = await User.findById(req.user.id).select("permissions");
     if (userDoc?.permissions && userDoc.permissions.canDeleteProjects === false) {
-      return res.status(403).json({ message: "Vous n'avez pas l'autorisation de supprimer des projets" });
+      return res.status(403).json({ message: "You do not have permission to delete projects" });
     }
   }
 
   const project = await Project.findByIdAndDelete(req.params.id);
   if (!project) {
-    return res.status(404).json({ message: "Projet introuvable" });
+    return res.status(404).json({ message: "Project not found" });
   }
 
   // Broadcast deletion notification to all dashboard users
@@ -439,7 +439,7 @@ export async function deleteProject(req, res) {
           fs.unlinkSync(filePath);
         }
       } catch (err) {
-        console.error(`Erreur lors de la suppression du fichier ${file.filename}:`, err);
+        console.error(`Error deleting file ${file.filename}:`, err);
       }
     }
   }
@@ -453,17 +453,17 @@ export async function deleteProject(req, res) {
           fs.unlinkSync(imagePath);
         }
       } catch (err) {
-        console.error(`Erreur lors de la suppression de l'image ${image.filename}:`, err);
+        console.error(`Error deleting image ${image.filename}:`, err);
       }
     }
   }
 
-  res.json({ message: "Projet supprimé" });
+  res.json({ message: "Project deleted successfully" });
 }
 
 export async function uploadProjectFile(req, res) {
   if (!req.file) {
-    return res.status(400).json({ message: "Aucun fichier fourni" });
+    return res.status(400).json({ message: "No file provided" });
   }
 
   const project = await Project.findById(req.params.id).populate(
@@ -477,7 +477,7 @@ export async function uploadProjectFile(req, res) {
         fs.unlinkSync(req.file.path);
       }
     } catch {}
-    return res.status(404).json({ message: "Projet introuvable" });
+    return res.status(404).json({ message: "Project not found" });
   }
 
   const fileDoc = {
@@ -494,7 +494,7 @@ export async function uploadProjectFile(req, res) {
   await project.save();
 
   res.status(201).json({
-    message: "Fichier téléchargé avec succès",
+    message: "File uploaded successfully",
     file: project.files[project.files.length - 1],
     project,
   });
@@ -507,12 +507,12 @@ export async function deleteProjectFile(req, res) {
   );
 
   if (!project) {
-    return res.status(404).json({ message: "Projet introuvable" });
+    return res.status(404).json({ message: "Project not found" });
   }
 
   const fileItem = project.files.id(req.params.fileId);
   if (!fileItem) {
-    return res.status(404).json({ message: "Fichier introuvable" });
+    return res.status(404).json({ message: "File not found" });
   }
 
   try {
@@ -521,14 +521,14 @@ export async function deleteProjectFile(req, res) {
       fs.unlinkSync(filePath);
     }
   } catch (err) {
-    console.error(`Erreur suppression fichier disque ${fileItem.filename}:`, err);
+    console.error(`Error deleting file from disk ${fileItem.filename}:`, err);
   }
 
   project.files.pull(req.params.fileId);
   await project.save();
 
   res.json({
-    message: "Fichier supprimé avec succès",
+    message: "File deleted successfully",
     project,
   });
 }
@@ -536,17 +536,17 @@ export async function deleteProjectFile(req, res) {
 export async function downloadProjectFile(req, res) {
   const project = await Project.findById(req.params.id);
   if (!project) {
-    return res.status(404).json({ message: "Projet introuvable" });
+    return res.status(404).json({ message: "Project not found" });
   }
 
   const fileItem = project.files.id(req.params.fileId);
   if (!fileItem) {
-    return res.status(404).json({ message: "Fichier introuvable" });
+    return res.status(404).json({ message: "File not found" });
   }
 
   const filePath = path.resolve(__dirname, "..", "uploads", "projects", fileItem.filename);
   if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ message: "Fichier non trouvé sur le serveur" });
+    return res.status(404).json({ message: "File not found on server" });
   }
 
   const downloadName = fileItem.originalName || fileItem.name || fileItem.filename;
@@ -555,7 +555,7 @@ export async function downloadProjectFile(req, res) {
 
 export async function uploadProjectImage(req, res) {
   if (!req.file) {
-    return res.status(400).json({ message: "Aucune image fournie" });
+    return res.status(400).json({ message: "No image provided" });
   }
 
   const project = await Project.findById(req.params.id).populate(
@@ -569,7 +569,7 @@ export async function uploadProjectImage(req, res) {
         fs.unlinkSync(req.file.path);
       }
     } catch {}
-    return res.status(404).json({ message: "Projet introuvable" });
+    return res.status(404).json({ message: "Project not found" });
   }
 
   const imageDoc = {
@@ -586,7 +586,7 @@ export async function uploadProjectImage(req, res) {
   await project.save();
 
   res.status(201).json({
-    message: "Image téléchargée avec succès",
+    message: "Image uploaded successfully",
     image: project.images[project.images.length - 1],
     project,
   });
@@ -599,12 +599,12 @@ export async function deleteProjectImage(req, res) {
   );
 
   if (!project) {
-    return res.status(404).json({ message: "Projet introuvable" });
+    return res.status(404).json({ message: "Project not found" });
   }
 
   const imageItem = project.images.id(req.params.imageId);
   if (!imageItem) {
-    return res.status(404).json({ message: "Image introuvable" });
+    return res.status(404).json({ message: "Image not found" });
   }
 
   try {
@@ -613,14 +613,14 @@ export async function deleteProjectImage(req, res) {
       fs.unlinkSync(imagePath);
     }
   } catch (err) {
-    console.error(`Erreur suppression image disque ${imageItem.filename}:`, err);
+    console.error(`Error deleting image from disk ${imageItem.filename}:`, err);
   }
 
   project.images.pull(req.params.imageId);
   await project.save();
 
   res.json({
-    message: "Image supprimée avec succès",
+    message: "Image deleted successfully",
     project,
   });
 }
@@ -628,17 +628,17 @@ export async function deleteProjectImage(req, res) {
 export async function downloadProjectImage(req, res) {
   const project = await Project.findById(req.params.id);
   if (!project) {
-    return res.status(404).json({ message: "Projet introuvable" });
+    return res.status(404).json({ message: "Project not found" });
   }
 
   const imageItem = project.images.id(req.params.imageId);
   if (!imageItem) {
-    return res.status(404).json({ message: "Image introuvable" });
+    return res.status(404).json({ message: "Image not found" });
   }
 
   const imagePath = path.resolve(__dirname, "..", "uploads", "images", imageItem.filename);
   if (!fs.existsSync(imagePath)) {
-    return res.status(404).json({ message: "Image non trouvée sur le serveur" });
+    return res.status(404).json({ message: "Image not found on server" });
   }
 
   const downloadName = imageItem.originalName || imageItem.filename;
@@ -731,7 +731,7 @@ async function notifyMentionedUsers({
 export async function addProjectComment(req, res) {
   const { text, author } = req.body;
   if (!text || !text.trim()) {
-    return res.status(400).json({ message: "Le texte du commentaire est requis" });
+    return res.status(400).json({ message: "Comment text is required" });
   }
 
   const project = await Project.findById(req.params.id).populate(
@@ -739,13 +739,13 @@ export async function addProjectComment(req, res) {
     CONTRACTOR_FIELDS
   );
   if (!project) {
-    return res.status(404).json({ message: "Projet introuvable" });
+    return res.status(404).json({ message: "Project not found" });
   }
 
   const newComment = {
     author: author || req.user?.name || "Admin",
     text: text.trim(),
-    date: new Date().toLocaleDateString("fr-FR"),
+    date: new Date().toLocaleDateString("en-US"),
     replies: [],
     createdAt: new Date(),
   };
@@ -764,7 +764,7 @@ export async function addProjectComment(req, res) {
   });
 
   res.status(201).json({
-    message: "Commentaire ajouté avec succès",
+    message: "Comment added successfully",
     comment: savedComment,
     project,
   });
@@ -776,19 +776,19 @@ export async function deleteProjectComment(req, res) {
     CONTRACTOR_FIELDS
   );
   if (!project) {
-    return res.status(404).json({ message: "Projet introuvable" });
+    return res.status(404).json({ message: "Project not found" });
   }
 
   const commentItem = project.comments.id(req.params.commentId);
   if (!commentItem) {
-    return res.status(404).json({ message: "Commentaire introuvable" });
+    return res.status(404).json({ message: "Comment not found" });
   }
 
   project.comments.pull(req.params.commentId);
   await project.save();
 
   res.json({
-    message: "Commentaire supprimé avec succès",
+    message: "Comment deleted successfully",
     project,
   });
 }
@@ -796,7 +796,7 @@ export async function deleteProjectComment(req, res) {
 export async function updateProjectComment(req, res) {
   const { text } = req.body;
   if (!text || !text.trim()) {
-    return res.status(400).json({ message: "Le texte du commentaire est requis" });
+    return res.status(400).json({ message: "Comment text is required" });
   }
 
   const project = await Project.findById(req.params.id).populate(
@@ -804,12 +804,12 @@ export async function updateProjectComment(req, res) {
     CONTRACTOR_FIELDS
   );
   if (!project) {
-    return res.status(404).json({ message: "Projet introuvable" });
+    return res.status(404).json({ message: "Project not found" });
   }
 
   const commentItem = project.comments.id(req.params.commentId);
   if (!commentItem) {
-    return res.status(404).json({ message: "Commentaire introuvable" });
+    return res.status(404).json({ message: "Comment not found" });
   }
 
   commentItem.text = text.trim();
@@ -828,7 +828,7 @@ export async function updateProjectComment(req, res) {
   });
 
   res.json({
-    message: "Commentaire modifié avec succès",
+    message: "Comment updated successfully",
     comment: commentItem,
     project,
   });
@@ -837,7 +837,7 @@ export async function updateProjectComment(req, res) {
 export async function addCommentReply(req, res) {
   const { text, author } = req.body;
   if (!text || !text.trim()) {
-    return res.status(400).json({ message: "Le texte de la réponse est requis" });
+    return res.status(400).json({ message: "Reply text is required" });
   }
 
   const project = await Project.findById(req.params.id).populate(
@@ -845,18 +845,18 @@ export async function addCommentReply(req, res) {
     CONTRACTOR_FIELDS
   );
   if (!project) {
-    return res.status(404).json({ message: "Projet introuvable" });
+    return res.status(404).json({ message: "Project not found" });
   }
 
   const commentItem = project.comments.id(req.params.commentId);
   if (!commentItem) {
-    return res.status(404).json({ message: "Commentaire introuvable" });
+    return res.status(404).json({ message: "Comment not found" });
   }
 
   const newReply = {
     author: author || req.user?.name || "Admin",
     text: text.trim(),
-    date: new Date().toLocaleDateString("fr-FR"),
+    date: new Date().toLocaleDateString("en-US"),
     createdAt: new Date(),
   };
 
@@ -876,7 +876,7 @@ export async function addCommentReply(req, res) {
   });
 
   res.status(201).json({
-    message: "Réponse ajoutée avec succès",
+    message: "Reply added successfully",
     reply: savedReply,
     comment: commentItem,
     project,
@@ -886,7 +886,7 @@ export async function addCommentReply(req, res) {
 export async function updateCommentReply(req, res) {
   const { text } = req.body;
   if (!text || !text.trim()) {
-    return res.status(400).json({ message: "Le texte de la réponse est requis" });
+    return res.status(400).json({ message: "Reply text is required" });
   }
 
   const project = await Project.findById(req.params.id).populate(
@@ -894,17 +894,17 @@ export async function updateCommentReply(req, res) {
     CONTRACTOR_FIELDS
   );
   if (!project) {
-    return res.status(404).json({ message: "Projet introuvable" });
+    return res.status(404).json({ message: "Project not found" });
   }
 
   const commentItem = project.comments.id(req.params.commentId);
   if (!commentItem) {
-    return res.status(404).json({ message: "Commentaire introuvable" });
+    return res.status(404).json({ message: "Comment not found" });
   }
 
   const replyItem = commentItem.replies.id(req.params.replyId);
   if (!replyItem) {
-    return res.status(404).json({ message: "Réponse introuvable" });
+    return res.status(404).json({ message: "Reply not found" });
   }
 
   replyItem.text = text.trim();
@@ -925,7 +925,7 @@ export async function updateCommentReply(req, res) {
   });
 
   res.json({
-    message: "Réponse modifiée avec succès",
+    message: "Reply updated successfully",
     reply: replyItem,
     comment: commentItem,
     project,
@@ -938,24 +938,24 @@ export async function deleteCommentReply(req, res) {
     CONTRACTOR_FIELDS
   );
   if (!project) {
-    return res.status(404).json({ message: "Projet introuvable" });
+    return res.status(404).json({ message: "Project not found" });
   }
 
   const commentItem = project.comments.id(req.params.commentId);
   if (!commentItem) {
-    return res.status(404).json({ message: "Commentaire introuvable" });
+    return res.status(404).json({ message: "Comment not found" });
   }
 
   const replyItem = commentItem.replies.id(req.params.replyId);
   if (!replyItem) {
-    return res.status(404).json({ message: "Réponse introuvable" });
+    return res.status(404).json({ message: "Reply not found" });
   }
 
   commentItem.replies.pull(req.params.replyId);
   await project.save();
 
   res.json({
-    message: "Réponse supprimée avec succès",
+    message: "Reply deleted successfully",
     project,
   });
 }
@@ -964,7 +964,7 @@ export async function deleteCommentReply(req, res) {
 export async function addProjectLink(req, res) {
   const { title, url } = req.body;
   if (!title || !url) {
-    return res.status(400).json({ message: "Titre et URL requis" });
+    return res.status(400).json({ message: "Title and URL are required" });
   }
 
   const project = await Project.findById(req.params.id).populate(
@@ -972,14 +972,14 @@ export async function addProjectLink(req, res) {
     CONTRACTOR_FIELDS
   );
   if (!project) {
-    return res.status(404).json({ message: "Projet introuvable" });
+    return res.status(404).json({ message: "Project not found" });
   }
 
   project.links.push({ title, url, createdAt: new Date() });
   await project.save();
 
   res.status(201).json({
-    message: "Lien ajouté avec succès",
+    message: "Link added successfully",
     link: project.links[project.links.length - 1],
     project,
   });
@@ -991,14 +991,14 @@ export async function deleteProjectLink(req, res) {
     CONTRACTOR_FIELDS
   );
   if (!project) {
-    return res.status(404).json({ message: "Projet introuvable" });
+    return res.status(404).json({ message: "Project not found" });
   }
 
   project.links.pull(req.params.linkId);
   await project.save();
 
   res.json({
-    message: "Lien supprimé avec succès",
+    message: "Link deleted successfully",
     project,
   });
 }
@@ -1007,19 +1007,19 @@ export async function deleteProjectLink(req, res) {
 export async function exportProjectFilesZip(req, res) {
   const project = await Project.findById(req.params.id);
   if (!project) {
-    return res.status(404).json({ message: "Projet introuvable" });
+    return res.status(404).json({ message: "Project not found" });
   }
 
   const hasFiles = project.files && project.files.length > 0;
   const hasImages = project.images && project.images.length > 0;
 
   if (!hasFiles && !hasImages) {
-    return res.status(400).json({ message: "Ce projet n'a aucun fichier ou image à exporter" });
+    return res.status(400).json({ message: "This project has no files or images to export" });
   }
 
   const archive = new ZipArchive({ zlib: { level: 9 } });
-  const safeName = (project.name || "projet").replace(/[^a-zA-Z0-9_-]/g, "_");
-  const zipFileName = `${safeName}_fichiers_${new Date().toISOString().slice(0, 10)}.zip`;
+  const safeName = (project.name || "project").replace(/[^a-zA-Z0-9_-]/g, "_");
+  const zipFileName = `${safeName}_files_${new Date().toISOString().slice(0, 10)}.zip`;
 
   res.setHeader("Content-Type", "application/zip");
   res.setHeader("Content-Disposition", `attachment; filename="${zipFileName}"`);
@@ -1052,7 +1052,7 @@ export async function exportAllUploadedFilesZip(req, res) {
   const projects = await Project.find();
 
   const archive = new ZipArchive({ zlib: { level: 9 } });
-  const zipFileName = `tous_les_fichiers_projets_${new Date().toISOString().slice(0, 10)}.zip`;
+  const zipFileName = `all_project_files_${new Date().toISOString().slice(0, 10)}.zip`;
 
   res.setHeader("Content-Type", "application/zip");
   res.setHeader("Content-Disposition", `attachment; filename="${zipFileName}"`);
@@ -1062,7 +1062,7 @@ export async function exportAllUploadedFilesZip(req, res) {
   let hasAnyFile = false;
 
   for (const project of projects) {
-    const safeProjectFolder = `${project.name || "projet"}_${project._id.toString().slice(-4)}`
+    const safeProjectFolder = `${project.name || "project"}_${project._id.toString().slice(-4)}`
       .replace(/[^a-zA-Z0-9_-]/g, "_");
 
     if (project.files && project.files.length > 0) {
@@ -1091,7 +1091,7 @@ export async function exportAllUploadedFilesZip(req, res) {
   }
 
   if (!hasAnyFile) {
-    archive.append("Aucun fichier téléversé pour le moment.", { name: "README.txt" });
+    archive.append("No uploaded files yet.", { name: "README.txt" });
   }
 
   await archive.finalize();
@@ -1111,14 +1111,14 @@ export async function exportProjectsCSV(req, res) {
 
   const headers = [
     "ID",
-    "Nom du Projet",
+    "Project Name",
     "Description",
-    "Statut",
-    "Priorité",
-    "Type de Projet",
+    "Status",
+    "Priority",
+    "Project Type",
     "Date",
     "Submitted Date",
-    "Contracteur",
+    "Contractor",
     "PM Name",
     "PM Emails",
     "Drafter Name",
@@ -1133,11 +1133,11 @@ export async function exportProjectsCSV(req, res) {
     "Project SS",
     "SE Time",
     "Updates",
-    "Nombre de Fichiers",
-    "Nombre d'Images",
-    "Liste des Fichiers",
-    "Liste des Images",
-    "Date de Création",
+    "Files Count",
+    "Images Count",
+    "Files List",
+    "Images List",
+    "Creation Date",
   ];
 
   const rows = projects.map((p) => {
@@ -1157,7 +1157,7 @@ export async function exportProjectsCSV(req, res) {
       escapeCSV(Array.isArray(p.projectType) ? p.projectType.join(", ") : (p.projectType || "")),
       escapeCSV(p.date),
       escapeCSV(p.submittedDate || ""),
-      escapeCSV(p.contractor?.nom || "Non assigné"),
+      escapeCSV(p.contractor?.nom || "Unassigned"),
       escapeCSV(p.pmName || ""),
       escapeCSV(p.pmEmails || ""),
       escapeCSV(p.drafterName || ""),
@@ -1176,13 +1176,13 @@ export async function exportProjectsCSV(req, res) {
       escapeCSV(p.images ? p.images.length : 0),
       escapeCSV(fileList),
       escapeCSV(imageList),
-      escapeCSV(p.createdAt ? new Date(p.createdAt).toLocaleDateString("fr-FR") : ""),
+      escapeCSV(p.createdAt ? new Date(p.createdAt).toLocaleDateString("en-US") : ""),
     ].join(",");
   });
 
-  // \uFEFF is UTF-8 Byte Order Mark so Excel opens French characters correctly
+  // \uFEFF is UTF-8 Byte Order Mark so Excel opens characters correctly
   const csvContent = "\uFEFF" + [headers.join(","), ...rows].join("\r\n");
-  const fileName = `export_projets_${new Date().toISOString().slice(0, 10)}.csv`;
+  const fileName = `projects_export_${new Date().toISOString().slice(0, 10)}.csv`;
 
   res.setHeader("Content-Type", "text/csv; charset=utf-8");
   res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
@@ -1199,12 +1199,12 @@ export async function exportProjectsPDF(req, res) {
     margin: 40,
     size: "A4",
     info: {
-      Title: "Rapport des Projets Solaires",
+      Title: "Solar Projects Report",
       Author: "ADVANCED Solar Solutions",
     },
   });
 
-  const fileName = `export_projets_${new Date().toISOString().slice(0, 10)}.pdf`;
+  const fileName = `projects_export_${new Date().toISOString().slice(0, 10)}.pdf`;
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
 
@@ -1213,9 +1213,9 @@ export async function exportProjectsPDF(req, res) {
   // HEADER BANNER
   doc.rect(40, 40, 515, 60).fill("#1e293b");
   doc.fillColor("#ffffff").fontSize(18).text("ADVANCED SOLAR SOLUTIONS", 55, 52, { bold: true });
-  doc.fontSize(10).fillColor("#94a3b8").text("Rapport d'exportation des projets", 55, 76);
+  doc.fontSize(10).fillColor("#94a3b8").text("Projects Export Report", 55, 76);
   doc.fontSize(9).fillColor("#cbd5e1").text(
-    `Généré le: ${new Date().toLocaleDateString("fr-FR")}`,
+    `Generated on: ${new Date().toLocaleDateString("en-US")}`,
     370,
     76,
     { width: 170, align: "right" }
@@ -1223,9 +1223,9 @@ export async function exportProjectsPDF(req, res) {
 
   // SUMMARY STATS
   const total = projects.length;
-  const inProgress = projects.filter((p) => p.status === "En cours").length;
-  const completed = projects.filter((p) => p.status === "Complété").length;
-  const pending = projects.filter((p) => p.status === "En attente").length;
+  const inProgress = projects.filter((p) => p.status === "In Progress" || p.status === "En cours").length;
+  const completed = projects.filter((p) => p.status === "Completed" || p.status === "Complété").length;
+  const pending = projects.filter((p) => p.status === "Pending" || p.status === "En attente").length;
 
   let y = 115;
   doc.rect(40, y, 515, 40).fill("#f8fafc");
@@ -1233,9 +1233,9 @@ export async function exportProjectsPDF(req, res) {
 
   doc.fillColor("#0f172a").fontSize(10);
   doc.text(`Total: ${total}`, 55, y + 14, { bold: true });
-  doc.fillColor("#2563eb").text(`En cours: ${inProgress}`, 175, y + 14);
-  doc.fillColor("#059669").text(`Complétés: ${completed}`, 290, y + 14);
-  doc.fillColor("#d97706").text(`En attente: ${pending}`, 415, y + 14);
+  doc.fillColor("#2563eb").text(`In Progress: ${inProgress}`, 175, y + 14);
+  doc.fillColor("#059669").text(`Completed: ${completed}`, 290, y + 14);
+  doc.fillColor("#d97706").text(`Pending: ${pending}`, 415, y + 14);
 
   y += 55;
 
@@ -1255,9 +1255,9 @@ export async function exportProjectsPDF(req, res) {
 
     // Top status indicator bar
     const statusColor =
-      p.status === "Complété"
+      (p.status === "Completed" || p.status === "Complété")
         ? "#10b981"
-        : p.status === "En cours"
+        : (p.status === "In Progress" || p.status === "En cours")
         ? "#3b82f6"
         : "#f59e0b";
     doc.rect(40, y, 515, 3).fill(statusColor);
@@ -1268,12 +1268,12 @@ export async function exportProjectsPDF(req, res) {
 
     // Meta details (Contractor, Date)
     doc.fillColor("#64748b").fontSize(8.5);
-    const contractorName = p.contractor?.nom || "Aucun contracteur";
-    doc.text(`Contracteur: ${contractorName}  |  Date: ${p.date || "—"}`, 55, y + 27);
+    const contractorName = p.contractor?.nom || "No contractor";
+    doc.text(`Contractor: ${contractorName}  |  Date: ${p.date || "—"}`, 55, y + 27);
 
     // Description
     doc.fillColor("#334155").fontSize(8.5);
-    const rawDesc = p.description || "Aucune note.";
+    const rawDesc = p.description || "No notes.";
     const truncatedDesc = rawDesc.length > 200 ? rawDesc.slice(0, 197) + "..." : rawDesc;
     doc.text(truncatedDesc, 55, y + 42, { width: 485, lineGap: 2 });
 
@@ -1282,7 +1282,7 @@ export async function exportProjectsPDF(req, res) {
     const imagesCount = p.images ? p.images.length : 0;
     doc.fillColor("#94a3b8").fontSize(8);
     doc.text(
-      `Fichiers joints: ${filesCount} document(s)  •  ${imagesCount} image(s)/photo(s)`,
+      `Attached files: ${filesCount} document(s)  •  ${imagesCount} image(s)/photo(s)`,
       55,
       y + 78
     );

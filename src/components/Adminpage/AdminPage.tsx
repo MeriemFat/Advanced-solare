@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FaEnvelope, FaLock, FaUserShield, FaEye, FaEyeSlash, FaArrowLeft } from "react-icons/fa";
 import Dashboard from "./Dashbord";
+import SessionExpiredModal from "./SessionExpiredModal";
 import { loginAdmin, type AuthUser } from "../../lib/api";
 import logoSolar from "../../assets/logoSolar.png";
 import "../../index.css";
@@ -16,6 +17,17 @@ export default function AdminPage() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSessionExpired, setIsSessionExpired] = useState(false);
+
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      setIsSessionExpired(true);
+    };
+    window.addEventListener("session-expired", handleSessionExpired);
+    return () => {
+      window.removeEventListener("session-expired", handleSessionExpired);
+    };
+  }, []);
 
   const persistSession = (token: string, authUser: AuthUser) => {
     localStorage.setItem("adminToken", token);
@@ -54,13 +66,29 @@ export default function AdminPage() {
     setUser(null);
   };
 
+  // SESSION EXPIRED LOGOUT
+  const handleExpiredLogout = () => {
+    localStorage.removeItem("adminToken");
+    localStorage.removeItem("adminUser");
+    setIsAuthenticated(false);
+    setUser(null);
+    setIsSessionExpired(false);
+    setErrorMessage("Your session has expired. Please log in again.");
+  };
+
   // IF AUTHENTICATED -> SHOW DASHBOARD
   if (isAuthenticated) {
     return (
-      <Dashboard
-        user={user}
-        onLogout={handleSignOut}
-      />
+      <>
+        <Dashboard
+          user={user}
+          onLogout={handleSignOut}
+        />
+        <SessionExpiredModal
+          isOpen={isSessionExpired}
+          onConfirmLogout={handleExpiredLogout}
+        />
+      </>
     );
   }
 

@@ -52,7 +52,7 @@ const fileFilter = (req, file, cb) => {
   if (allowedExtensions.test(ext)) {
     cb(null, true);
   } else {
-    cb(new Error(`Type de fichier non autorisé: .${ext}`), false);
+    cb(new Error(`File type not allowed: .${ext}`), false);
   }
 };
 
@@ -63,7 +63,7 @@ const imageFilter = (req, file, cb) => {
   if (allowedExtensions.test(ext) || file.mimetype.startsWith("image/")) {
     cb(null, true);
   } else {
-    cb(new Error(`Seuls les formats d'image sont autorisés (jpeg, jpg, png, gif, webp, svg, avif, etc.): .${ext}`), false);
+    cb(new Error(`Only image formats are allowed (jpeg, jpg, png, gif, webp, svg, avif, etc.): .${ext}`), false);
   }
 };
 

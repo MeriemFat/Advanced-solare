@@ -30,7 +30,7 @@ const commentReplySchema = new mongoose.Schema(
   {
     author: { type: String, required: true, default: "Admin" },
     text: { type: String, required: true },
-    date: { type: String, default: () => new Date().toLocaleDateString("fr-FR") },
+    date: { type: String, default: () => new Date().toLocaleDateString("en-US") },
     isEdited: { type: Boolean, default: false },
     updatedAt: { type: Date },
     createdAt: { type: Date, default: Date.now },
@@ -42,7 +42,7 @@ const projectCommentSchema = new mongoose.Schema(
   {
     author: { type: String, required: true, default: "Admin" },
     text: { type: String, required: true },
-    date: { type: String, default: () => new Date().toLocaleDateString("fr-FR") },
+    date: { type: String, default: () => new Date().toLocaleDateString("en-US") },
     isEdited: { type: Boolean, default: false },
     updatedAt: { type: Date },
     replies: { type: [commentReplySchema], default: [] },

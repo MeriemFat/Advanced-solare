@@ -42,8 +42,8 @@ export const ManageColumnsModal: React.FC<ManageColumnsModalProps> = ({
 
       { key: "submittedDate", label: getLabel("submittedDate", "Submitted Date"), category: "Dates" },
       { key: "date", label: getLabel("date", "Target Date"), category: "Dates" },
-      { key: "timeSpent", label: getLabel("timeSpent", "Time Spent (Temps passé)"), category: "Dates" },
-      { key: "targetDuration", label: getLabel("targetDuration", "Target Duration (Durée prévue)"), category: "Dates" },
+      { key: "timeSpent", label: getLabel("timeSpent", "Time Spent"), category: "Dates" },
+      { key: "targetDuration", label: getLabel("targetDuration", "Target Duration"), category: "Dates" },
 
       { key: "pmName", label: getLabel("pmName", "PM Name"), category: "Team" },
       { key: "pmEmails", label: getLabel("pmEmails", "PM Emails"), category: "Team" },

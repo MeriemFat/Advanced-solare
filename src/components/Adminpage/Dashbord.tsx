@@ -48,8 +48,10 @@ import {
 import { MentionInput } from "./MentionInput";
 import Contractors from "./Contractors";
 import Subadmins from "./Subadmins";
+import { EnglishDateInput, isoToUS } from "./EnglishDateInput";
 import Invoices from "./Invoices";
 import Interconnection from "./Interconnection";
+import { ConfirmModal } from "./ConfirmModal";
 import "./admin-responsive.css";
 
 type ProjectDetail = {
@@ -261,8 +263,8 @@ export const PRIORITY_ORDER: Record<string, number> = {
 export const SORT_OPTIONS = [
   { field: "date", label: "Target Date" },
   { field: "submittedDate", label: "Submitted Date" },
-  { field: "timeSpent", label: "Time Spent (Temps passé)" },
-  { field: "targetDuration", label: "Target Duration (Durée prévue)" },
+  { field: "timeSpent", label: "Time Spent" },
+  { field: "targetDuration", label: "Target Duration" },
   { field: "name", label: "Project Title" },
   { field: "priority", label: "Priority" },
   { field: "status", label: "Board Status" },
@@ -660,15 +662,15 @@ export function getPriorityStyle(priority: string = "Medium"): React.CSSProperti
 
 export type TimelineHighlight = {
   state: "normal" | "yellow" | "red";
-  // Temps passé dans le projet (Aujourd'hui - Submitted Date)
+  // Time spent in project (Today - Submitted Date)
   timeSpentHours: number;
   timeSpentDays: number;
   timeSpentLabel: string;
-  // Durée prévue du projet (Target Date - Submitted Date)
+  // Target duration of project (Target Date - Submitted Date)
   plannedDurationHours: number;
   plannedDurationDays: number;
   plannedDurationLabel: string;
-  // Aliases de compatibilité
+  // Compatibility aliases
   elapsedHours: number;
   elapsedLabel: string;
   thresholdLabel: string;
@@ -682,15 +684,6 @@ function parseSafeDate(dateStr?: string | null): Date | null {
   const s = String(dateStr).trim();
   if (!s) return null;
 
-  // Format DD/MM/YYYY
-  const ddmmyyyy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (ddmmyyyy) {
-    const day = parseInt(ddmmyyyy[1], 10);
-    const month = parseInt(ddmmyyyy[2], 10) - 1;
-    const year = parseInt(ddmmyyyy[3], 10);
-    return new Date(year, month, day);
-  }
-
   // Format YYYY-MM-DD
   const yyyymmdd = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (yyyymmdd) {
@@ -698,6 +691,22 @@ function parseSafeDate(dateStr?: string | null): Date | null {
     const month = parseInt(yyyymmdd[2], 10) - 1;
     const day = parseInt(yyyymmdd[3], 10);
     return new Date(year, month, day);
+  }
+
+  // Format MM/DD/YYYY (or DD/MM/YYYY fallback)
+  const slashMatch = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (slashMatch) {
+    let p1 = parseInt(slashMatch[1], 10);
+    let p2 = parseInt(slashMatch[2], 10);
+    const year = parseInt(slashMatch[3], 10);
+    let month = p1;
+    let day = p2;
+    if (p1 > 12 && p2 <= 12) {
+      // Legacy French DD/MM/YYYY
+      day = p1;
+      month = p2;
+    }
+    return new Date(year, month - 1, day);
   }
 
   const d = new Date(s);
@@ -711,25 +720,25 @@ export function getProjectTimelineHighlight(
   const normStatus = normalizeStatus(project.status);
   const now = new Date();
 
-  // 1. Date de départ : Submitted Date (ou createdAt si absente)
+  // 1. Start date: Submitted Date (or createdAt if absent)
   const startDate = parseSafeDate(project.submittedDate) || parseSafeDate(project.createdAt) || now;
   const targetDate = parseSafeDate(project.date);
 
-  // Si le projet est complété, on arrête le chronomètre du temps passé à sa date d'achèvement
+  // If project is completed, stop the time spent clock at its completion date
   const isCompleted = normStatus === "Completed" || normStatus === "Complété";
   const endDate = isCompleted
     ? (parseSafeDate(project.statusUpdatedAt) || parseSafeDate(project.updatedAt) || now)
     : now;
 
   // =========================================================================
-  // VARIABLE 1 : TEMPS PASSÉ DANS LE PROJET (Aujourd'hui - Submitted Date)
+  // VARIABLE 1: TIME SPENT IN PROJECT (Today - Submitted Date)
   // =========================================================================
   const startMidnight = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()).getTime();
   const endMidnight = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate()).getTime();
   const diffTimeSpentMs = Math.max(0, endMidnight - startMidnight);
   const timeSpentDays = Math.floor(diffTimeSpentMs / (1000 * 60 * 60 * 24));
 
-  // Calcul d'heures réelles pour les projets récents ou du même jour
+  // Calculation of actual hours for recent or same-day projects
   const exactStartTime = startDate.getTime();
   const exactEndTime = endDate.getTime();
   const exactDiffHours = Math.floor(Math.max(0, exactEndTime - exactStartTime) / (1000 * 60 * 60));
@@ -746,7 +755,7 @@ export function getProjectTimelineHighlight(
   }
 
   // =========================================================================
-  // VARIABLE 2 : DURÉE PRÉVUE DU PROJET (Target Date - Submitted Date)
+  // VARIABLE 2: TARGET DURATION OF PROJECT (Target Date - Submitted Date)
   // =========================================================================
   let plannedDurationHours = 0;
   let plannedDurationDays = 0;
@@ -766,10 +775,10 @@ export function getProjectTimelineHighlight(
     }
   }
 
-  const startDisplay = project.submittedDate || "N/A";
-  const targetDisplay = project.date || "N/A";
+  const startDisplay = isoToUS(project.submittedDate) || "N/A";
+  const targetDisplay = isoToUS(project.date) || "N/A";
 
-  // Si le statut est complété
+  // If status is completed
   if (isCompleted) {
     return {
       state: "normal",
@@ -799,7 +808,7 @@ export function getProjectTimelineHighlight(
             whiteSpace: "nowrap",
             boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
           }}
-          title={`Projet complété ! Temps total passé : ${timeSpentLabel} | Durée prévue : ${plannedDurationLabel}`}
+          title={`Project completed! Total time spent: ${timeSpentLabel} | Target duration: ${plannedDurationLabel}`}
         >
           ✓ {timeSpentLabel}
         </span>
@@ -818,7 +827,7 @@ export function getProjectTimelineHighlight(
   const yellowHours = statusConfig?.yellowThresholdHours ?? 24;
   const redHours = statusConfig?.redThresholdHours ?? 48;
 
-  // Temps passé dans le statut actuel (en heures)
+  // Time spent in current status (in hours)
   const refDate = project.statusUpdatedAt || project.createdAt;
   let refTime = refDate ? new Date(refDate).getTime() : NaN;
   if (isNaN(refTime)) {
@@ -828,13 +837,13 @@ export function getProjectTimelineHighlight(
   const timeInStageMs = Math.max(0, Date.now() - refTime);
   const hoursInStage = Math.floor(timeInStageMs / (1000 * 60 * 60));
 
-  // 3. Vérification de la Target Date (strictement si la date cible est dépassée par rapport à aujourd'hui)
+  // 3. Verification of Target Date (strictly if target date is overdue compared to today)
   const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const targetMidnight = targetDate ? new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate()).getTime() : null;
   const isTargetDateOverdue = targetMidnight !== null && todayMidnight > targetMidnight;
 
-  // 4. Détermination des alertes basées sur le temps RÉELLEMENT passé
-  // (Temps passé dans le projet depuis la soumission OU temps passé dans le statut actuel)
+  // 4. Determination of alerts based on ACTUALLY spent time
+  // (Time spent in project since submission OR time spent in current status)
   const effectiveHours = Math.max(timeSpentHours, hoursInStage);
 
   const isRed = isTargetDateOverdue || effectiveHours >= redHours;
@@ -926,7 +935,7 @@ export function getProjectTimelineHighlight(
     };
   }
 
-  // Normal (dans les délais)
+  // Normal (on schedule)
   return {
     state: "normal",
     timeSpentHours,
@@ -937,7 +946,7 @@ export function getProjectTimelineHighlight(
     plannedDurationLabel,
     elapsedHours: timeSpentHours,
     elapsedLabel: timeSpentLabel,
-    thresholdLabel: `Cible : ${targetDisplay}`,
+    thresholdLabel: `Target: ${targetDisplay}`,
     cellBackground: "transparent",
     borderAccent: "#0284c7",
     badgeBadge: (
@@ -955,7 +964,7 @@ export function getProjectTimelineHighlight(
           whiteSpace: "nowrap",
           border: "1px solid #bae6fd",
         }}
-        title={`Temps passé : ${timeSpentLabel} (depuis ${startDisplay}) | Durée prévue : ${plannedDurationLabel} (échéance ${targetDisplay})`}
+        title={`Time spent: ${timeSpentLabel} (since ${startDisplay}) | Target duration: ${plannedDurationLabel} (target ${targetDisplay})`}
       >
         ⏱️ {timeSpentLabel}
       </span>
@@ -1105,6 +1114,29 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   const [editingReplyId, setEditingReplyId] = useState<string | number | null>(null);
   const [editingReplyText, setEditingReplyText] = useState("");
   const [mentionableUsers, setMentionableUsers] = useState<SubadminUser[]>([]);
+  const [successToast, setSuccessToast] = useState<{ title: string; message: string } | null>(null);
+
+  useEffect(() => {
+    if (!successToast) return;
+    const timer = setTimeout(() => {
+      setSuccessToast(null);
+    }, 4500);
+    return () => clearTimeout(timer);
+  }, [successToast]);
+
+  const [genericConfirm, setGenericConfirm] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    itemName?: string;
+    itemTypeLabel?: string;
+    warningNote?: string;
+    confirmText?: string;
+    cancelText?: string;
+    type?: "danger" | "warning" | "info";
+    isLoading?: boolean;
+    onConfirm: () => void | Promise<void>;
+  } | null>(null);
 
   useEffect(() => {
     getMentionableUsers()
@@ -1290,13 +1322,13 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       id: c._id || c.id || Date.now(),
       text: c.text,
       author: c.author || "Admin",
-      date: c.date || (c.createdAt ? new Date(c.createdAt).toLocaleDateString() : new Date().toLocaleDateString()),
+      date: c.date || (c.createdAt ? new Date(c.createdAt).toLocaleDateString("en-US") : new Date().toLocaleDateString("en-US")),
       isEdited: Boolean(c.isEdited),
       replies: (c.replies || []).map((r: any) => ({
         id: r._id || r.id || Date.now(),
         text: r.text,
         author: r.author || "Admin",
-        date: r.date || (r.createdAt ? new Date(r.createdAt).toLocaleDateString() : new Date().toLocaleDateString()),
+        date: r.date || (r.createdAt ? new Date(r.createdAt).toLocaleDateString("en-US") : new Date().toLocaleDateString("en-US")),
         isEdited: Boolean(r.isEdited),
       })),
     }));
@@ -1376,12 +1408,12 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
     const today = getTodayDateString();
     if (formData.submittedDate && formData.submittedDate > today) {
-      alert("La date de soumission (Submitted Date) ne peut pas être dans le futur. Elle doit être aujourd'hui ou dans le passé.");
+      alert("Submitted Date cannot be in the future. It must be today or in the past.");
       return;
     }
 
     if (formData.date && formData.date < today) {
-      alert("La date cible (Target Date) ne peut pas être dans le passé. Elle doit être aujourd'hui ou dans le futur.");
+      alert("Target Date cannot be in the past. It must be today or in the future.");
       return;
     }
 
@@ -1426,6 +1458,10 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
               : p
           )
         );
+        setSuccessToast({
+          title: "Project Updated",
+          message: `Your project "${formData.name.trim()}" has been updated successfully!`,
+        });
       } else {
         const created = await createProject({
           ...formData,
@@ -1446,6 +1482,10 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
           },
           ...projects,
         ]);
+        setSuccessToast({
+          title: "Project Added",
+          message: `Your project "${created.name}" has been added successfully!`,
+        });
       }
       resetForm();
     } catch (err: any) {
@@ -1754,35 +1794,52 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
     }
   };
 
-  const handleDeleteCustomVariableFromHeader = async (variable: CustomVariable) => {
-    if (
-      !window.confirm(
-        `Are you sure you want to delete the column "${variable.name}"? This column will be removed from the table and all projects.`
-      )
-    ) {
-      return;
-    }
-    try {
-      await deleteCustomVariable(variable._id);
-      setCustomVariables((prev) => prev.filter((v) => v._id !== variable._id));
-    } catch (err: any) {
-      alert(err.message || "Failed to delete custom variable");
-    }
+  const handleDeleteCustomVariableFromHeader = (variable: CustomVariable) => {
+    setGenericConfirm({
+      isOpen: true,
+      title: "Delete Column?",
+      message: `Are you sure you want to delete the column "${variable.name}"? This column will be removed from the table and all projects.`,
+      itemName: variable.name,
+      itemTypeLabel: "Dynamic Column",
+      warningNote: "This action cannot be undone.",
+      confirmText: "Delete Column",
+      type: "danger",
+      onConfirm: async () => {
+        try {
+          await deleteCustomVariable(variable._id);
+          setCustomVariables((prev) => prev.filter((v) => v._id !== variable._id));
+          setSuccessToast({
+            title: "Column Deleted",
+            message: `Column "${variable.name}" was removed successfully.`,
+          });
+        } catch (err: any) {
+          alert(err.message || "Failed to delete custom variable");
+        } finally {
+          setGenericConfirm(null);
+        }
+      },
+    });
   };
 
   const handleHideColumn = (fieldKey: string, label: string) => {
-    if (
-      !window.confirm(
-        `Are you sure you want to remove the column "${label}" from the table? You can restore it anytime from the Columns menu.`
-      )
-    ) {
-      return;
-    }
-    const next = [...hiddenColumns, fieldKey];
-    setHiddenColumns(next);
-    try {
-      localStorage.setItem("advanced_hidden_columns", JSON.stringify(next));
-    } catch {}
+    setGenericConfirm({
+      isOpen: true,
+      title: "Hide Column?",
+      message: `Are you sure you want to remove the column "${label}" from the table view?`,
+      itemName: label,
+      itemTypeLabel: "Table Column",
+      warningNote: "You can restore this column anytime from the Columns menu.",
+      confirmText: "Hide Column",
+      type: "warning",
+      onConfirm: () => {
+        const next = [...hiddenColumns, fieldKey];
+        setHiddenColumns(next);
+        try {
+          localStorage.setItem("advanced_hidden_columns", JSON.stringify(next));
+        } catch {}
+        setGenericConfirm(null);
+      },
+    });
   };
 
   const handleToggleColumnVisibility = (fieldKey: string) => {
@@ -1918,17 +1975,33 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
     }
   };
 
-  const handleDeleteWorkflowStatus = async (statusId: string, statusName: string) => {
-    if (!window.confirm(`Are you sure you want to delete status "${statusName}"?`)) return;
-    try {
-      setIsSavingStatus(true);
-      await deleteWorkflowStatus(statusId);
-      setWorkflowStatuses((prev) => prev.filter((s) => s._id !== statusId));
-    } catch (err: any) {
-      alert(err.message || "Error deleting status");
-    } finally {
-      setIsSavingStatus(false);
-    }
+  const handleDeleteWorkflowStatus = (statusId: string, statusName: string) => {
+    setGenericConfirm({
+      isOpen: true,
+      title: "Delete Status?",
+      message: `Are you sure you want to delete workflow status "${statusName}"?`,
+      itemName: statusName,
+      itemTypeLabel: "Workflow Status",
+      warningNote: "Projects currently on this status may need to be updated.",
+      confirmText: "Delete Status",
+      type: "danger",
+      onConfirm: async () => {
+        try {
+          setIsSavingStatus(true);
+          await deleteWorkflowStatus(statusId);
+          setWorkflowStatuses((prev) => prev.filter((s) => s._id !== statusId));
+          setSuccessToast({
+            title: "Status Deleted",
+            message: `Workflow status "${statusName}" has been deleted.`,
+          });
+        } catch (err: any) {
+          alert(err.message || "Error deleting status");
+        } finally {
+          setIsSavingStatus(false);
+          setGenericConfirm(null);
+        }
+      },
+    });
   };
 
   const resetForm = () => {
@@ -2017,7 +2090,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                               id: Date.now(),
                               text: replyText.trim(),
                               author,
-                              date: new Date().toLocaleDateString(),
+                              date: new Date().toLocaleDateString("en-US"),
                             },
                           ],
                         }
@@ -3053,7 +3126,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
               style={{ maxWidth: "160px", textOverflow: "ellipsis" }}
               title="Change assigned contractor"
             >
-              <option value="">Non assigné</option>
+              <option value="">Unassigned</option>
               {contractorsList.map((c) => (
                 <option key={c._id} value={c._id}>
                   {c.nom}
@@ -3097,14 +3170,13 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
         {/* 6. SUBMITTED DATE */}
         {!hiddenColumns.includes("submittedDate") && (
           <td style={styles.td} onClick={(e) => e.stopPropagation()}>
-            <input
-              type="date"
+            <EnglishDateInput
               className="admin-table-input"
               max={getTodayDateString()}
               value={project.submittedDate || ""}
               onChange={(e) => handleUpdateField(project, "submittedDate", e.target.value)}
-              style={{ width: "125px", cursor: "pointer" }}
-              title="Submitted Date"
+              style={{ width: "135px", cursor: "pointer", fontSize: "12px", padding: "4px 28px 4px 8px" }}
+              title="Submitted Date (mm/dd/yyyy)"
             />
           </td>
         )}
@@ -3112,19 +3184,18 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
         {/* 7. TARGET DATE */}
         {!hiddenColumns.includes("date") && (
           <td style={styles.td} onClick={(e) => e.stopPropagation()}>
-            <input
-              type="date"
+            <EnglishDateInput
               className="admin-table-input"
               min={getTodayDateString()}
               value={project.date || ""}
               onChange={(e) => handleUpdateField(project, "date", e.target.value)}
-              style={{ width: "125px", cursor: "pointer" }}
-              title="Target Date"
+              style={{ width: "135px", cursor: "pointer", fontSize: "12px", padding: "4px 28px 4px 8px" }}
+              title="Target Date (mm/dd/yyyy)"
             />
           </td>
         )}
 
-        {/* TIME SPENT (TEMPS PASSÉ : AUJOURD'HUI - SUBMITTED DATE) */}
+        {/* TIME SPENT: TODAY - SUBMITTED DATE */}
         {!hiddenColumns.includes("timeSpent") && (
           <td style={styles.td} onClick={(e) => e.stopPropagation()}>
             <span
@@ -3156,14 +3227,14 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                     : "1px solid #e2e8f0",
                 whiteSpace: "nowrap",
               }}
-              title={`Temps passé dans le projet : ${timeline.timeSpentLabel} (depuis ${project.submittedDate || "N/A"} jusqu'à aujourd'hui)`}
+              title={`Time spent on project: ${timeline.timeSpentLabel} (from ${isoToUS(project.submittedDate) || "N/A"} to today)`}
             >
               ⏱️ {timeline.timeSpentLabel}
             </span>
           </td>
         )}
 
-        {/* TARGET DURATION (DURÉE PRÉVUE : TARGET DATE - SUBMITTED DATE) */}
+        {/* TARGET DURATION: TARGET DATE - SUBMITTED DATE */}
         {!hiddenColumns.includes("targetDuration") && (
           <td style={styles.td} onClick={(e) => e.stopPropagation()}>
             <span
@@ -3180,7 +3251,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                 border: "1px solid #e2e8f0",
                 whiteSpace: "nowrap",
               }}
-              title={`Durée totale prévue : ${timeline.plannedDurationLabel} (du ${project.submittedDate || "N/A"} au ${project.date || "N/A"})`}
+              title={`Total planned duration: ${timeline.plannedDurationLabel} (from ${isoToUS(project.submittedDate) || "N/A"} to ${isoToUS(project.date) || "N/A"})`}
             >
               ⏳ {timeline.plannedDurationLabel}
             </span>
@@ -3626,14 +3697,14 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                     }}
                   />
                 ) : v.type === "date" ? (
-                  <input
-                    type="date"
+                  <EnglishDateInput
                     className="admin-table-input"
-                    defaultValue={val ? String(val).slice(0, 10) : ""}
+                    value={val ? String(val).slice(0, 10) : ""}
                     key={`custom-${project.id}-${v.key}-${val}`}
                     onChange={(e) => {
                       handleUpdateCustomField(project, v.key, e.target.value);
                     }}
+                    style={{ width: "135px", fontSize: "12px", padding: "4px 28px 4px 8px" }}
                   />
                 ) : (
                   <input
@@ -3772,6 +3843,90 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
   return (
     <div className="admin-container">
+      {/* FLOATING SUCCESS TOAST NOTIFICATION */}
+      {successToast && (
+        <div
+          role="alert"
+          style={{
+            position: "fixed",
+            top: "24px",
+            right: "24px",
+            zIndex: 999999,
+            display: "flex",
+            alignItems: "center",
+            gap: "14px",
+            background: "linear-gradient(135deg, #065f46 0%, #047857 100%)",
+            color: "#ffffff",
+            padding: "14px 20px",
+            borderRadius: "14px",
+            boxShadow: "0 20px 30px -10px rgba(6, 95, 70, 0.45), 0 0 0 1px rgba(52, 211, 153, 0.35)",
+            maxWidth: "420px",
+            animation: "slideInRight 0.35s cubic-bezier(0.16, 1, 0.3, 1)",
+          }}
+        >
+          <div
+            style={{
+              width: "38px",
+              height: "38px",
+              borderRadius: "50%",
+              background: "rgba(255, 255, 255, 0.2)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <FaCheckCircle style={{ fontSize: "22px", color: "#a7f3d0" }} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: "14px", letterSpacing: "0.2px", color: "#ffffff" }}>
+              {successToast.title}
+            </div>
+            <div style={{ fontSize: "13px", color: "#d1fae5", marginTop: "2px", lineHeight: "1.4" }}>
+              {successToast.message}
+            </div>
+          </div>
+          <button
+            onClick={() => setSuccessToast(null)}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "#a7f3d0",
+              cursor: "pointer",
+              padding: "4px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "16px",
+              borderRadius: "4px",
+            }}
+            title="Dismiss"
+          >
+            <FaTimes />
+          </button>
+        </div>
+      )}
+
+      {/* GENERIC CONFIRM MODAL */}
+      {genericConfirm && (
+        <ConfirmModal
+          isOpen={genericConfirm.isOpen}
+          onClose={() => {
+            if (!genericConfirm.isLoading) setGenericConfirm(null);
+          }}
+          onConfirm={genericConfirm.onConfirm}
+          title={genericConfirm.title}
+          message={genericConfirm.message}
+          itemName={genericConfirm.itemName}
+          itemTypeLabel={genericConfirm.itemTypeLabel}
+          warningNote={genericConfirm.warningNote}
+          confirmText={genericConfirm.confirmText}
+          cancelText={genericConfirm.cancelText}
+          type={genericConfirm.type}
+          isLoading={genericConfirm.isLoading}
+        />
+      )}
+
       {/* HEADER SECTION */}
       <div className="admin-header-card">
         <div className="admin-header-content">
@@ -4224,17 +4379,16 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                   <div>
                     <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#475569", marginBottom: "5px" }}>
                       {getLabel("submittedDate", "Submitted Date")}
-                      <span style={{ fontSize: "11px", fontWeight: 400, color: "#64748b", marginLeft: "6px" }}>(Aujourd'hui ou passé)</span>
+                      <span style={{ fontSize: "11px", fontWeight: 400, color: "#64748b", marginLeft: "6px" }}>(Today or past)</span>
                     </label>
-                    <input
-                      type="date"
+                    <EnglishDateInput
                       max={getTodayDateString()}
                       value={formData.submittedDate}
                       onChange={(e) => {
                         const val = e.target.value;
                         const today = getTodayDateString();
                         if (val && val > today) {
-                          alert("La date de soumission ne peut pas être dans le futur.");
+                          alert("Submitted date cannot be in the future.");
                           return;
                         }
                         setFormData({ ...formData, submittedDate: val });
@@ -4246,22 +4400,22 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                   <div>
                     <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#475569", marginBottom: "5px" }}>
                       {getLabel("date", "Target Date")} *
-                      <span style={{ fontSize: "11px", fontWeight: 400, color: "#64748b", marginLeft: "6px" }}>(Aujourd'hui ou futur)</span>
+                      <span style={{ fontSize: "11px", fontWeight: 400, color: "#64748b", marginLeft: "6px" }}>(Today or future)</span>
                     </label>
-                    <input
-                      type="date"
+                    <EnglishDateInput
                       min={getTodayDateString()}
                       value={formData.date}
                       onChange={(e) => {
                         const val = e.target.value;
                         const today = getTodayDateString();
                         if (val && val < today) {
-                          alert("La date cible (Target Date) ne peut pas être dans le passé.");
+                          alert("Target date cannot be in the past.");
                           return;
                         }
                         setFormData({ ...formData, date: val });
                       }}
                       style={styles.input}
+                      required
                     />
                   </div>
                 </div>
@@ -4911,7 +5065,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                     return (
                       <Fragment key="sort-adresse-priority-group">
                         <option value={adresseVariable ? `custom_${adresseVariable.key}` : "custom_adresse"}>
-                          {adresseVariable ? adresseVariable.name : "Adresse"}
+                          {adresseVariable ? adresseVariable.name : "Address"}
                         </option>
                         <option key={opt.field} value={opt.field}>
                           {opt.label}
@@ -5866,7 +6020,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                     <span style={{ ...styles.iconSquare, background: "#0284c7" }}>📨</span>
                     Submitted Date
                   </span>
-                  <span style={styles.infoValue}>{selectedProject.submittedDate}</span>
+                  <span style={styles.infoValue}>{isoToUS(selectedProject.submittedDate)}</span>
                 </div>
               )}
 
@@ -5875,14 +6029,14 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                   <span style={{ ...styles.iconSquare, background: "#a25ddc" }}>📅</span>
                   Target Date
                 </span>
-                <span style={styles.infoValue}>{selectedProject.date}</span>
+                <span style={styles.infoValue}>{isoToUS(selectedProject.date)}</span>
               </div>
 
               {/* SEPARATE VARIABLE 1: TIME SPENT (TODAY - SUBMITTED DATE) */}
               <div style={styles.infoRow}>
                 <span style={styles.infoLabel}>
                   <span style={{ ...styles.iconSquare, background: "#0284c7" }}>⏱️</span>
-                  Time Spent (Temps passé)
+                  Time Spent
                 </span>
                 <span style={{
                   ...styles.infoValue,
@@ -5901,7 +6055,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
               <div style={styles.infoRow}>
                 <span style={styles.infoLabel}>
                   <span style={{ ...styles.iconSquare, background: "#6366f1" }}>⏳</span>
-                  Target Duration (Durée prévue)
+                  Target Duration
                 </span>
                 <span style={{ ...styles.infoValue, fontWeight: 600, color: "#475569" }}>
                   {getProjectTimelineHighlight(selectedProject, workflowStatuses).plannedDurationLabel}
@@ -5998,9 +6152,8 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                             }}
                           />
                         ) : v.type === "date" ? (
-                          <input
-                            type="date"
-                            defaultValue={val ? String(val).slice(0, 10) : ""}
+                          <EnglishDateInput
+                            value={val ? String(val).slice(0, 10) : ""}
                             key={`drawer-${selectedProject.id}-${v.key}-${val}`}
                             onChange={(e) => {
                               handleUpdateCustomField(selectedProject, v.key, e.target.value);

@@ -23,6 +23,7 @@ import {
   type SubadminUser,
   type UserPermissions,
 } from "../../lib/api";
+import { ConfirmModal } from "./ConfirmModal";
 
 type SubadminsProps = {
   currentUser: { id?: string; name: string; email: string; role?: string } | null;
@@ -62,6 +63,8 @@ export default function Subadmins({ currentUser }: SubadminsProps) {
   const [selectedUserForPerms, setSelectedUserForPerms] = useState<SubadminUser | null>(null);
   const [permsForm, setPermsForm] = useState<UserPermissions>(DEFAULT_PERMISSIONS);
   const [isSavingPerms, setIsSavingPerms] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
 
   const loadSubadmins = () => {
     setIsLoading(true);
@@ -139,21 +142,25 @@ export default function Subadmins({ currentUser }: SubadminsProps) {
     setShowForm(true);
   };
 
-  const handleDelete = async (id: string, name: string) => {
+  const handleDelete = (id: string, name: string) => {
     if (currentUser?.id === id || currentUser?.email === subadmins.find((s) => s._id === id)?.email) {
       alert("You cannot delete your own administrator account!");
       return;
     }
+    setUserToDelete({ id, name });
+  };
 
-    if (!window.confirm(`Are you sure you want to delete the account for ${name}?`)) {
-      return;
-    }
-
+  const handleConfirmDeleteUser = async () => {
+    if (!userToDelete) return;
     try {
-      await deleteSubadmin(id);
-      setSubadmins(subadmins.filter((s) => s._id !== id));
+      setIsDeletingUser(true);
+      await deleteSubadmin(userToDelete.id);
+      setSubadmins(subadmins.filter((s) => s._id !== userToDelete.id));
+      setUserToDelete(null);
     } catch (err: any) {
       alert(err.message || "Error deleting account");
+    } finally {
+      setIsDeletingUser(false);
     }
   };
 
@@ -865,6 +872,23 @@ export default function Subadmins({ currentUser }: SubadminsProps) {
           </table>
         </div>
       )}
+
+      {/* CONFIRM DELETE USER MODAL */}
+      <ConfirmModal
+        isOpen={Boolean(userToDelete)}
+        onClose={() => {
+          if (!isDeletingUser) setUserToDelete(null);
+        }}
+        onConfirm={handleConfirmDeleteUser}
+        title="Delete User Account?"
+        message={`Are you sure you want to delete the account for "${userToDelete?.name}"? This user will immediately lose all access to the system.`}
+        itemName={userToDelete?.name}
+        itemTypeLabel="User Account"
+        warningNote="This account deletion is permanent."
+        confirmText="Delete Account"
+        type="danger"
+        isLoading={isDeletingUser}
+      />
     </div>
   );
 }

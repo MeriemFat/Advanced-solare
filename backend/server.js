@@ -78,7 +78,7 @@ async function ensureSuperAdmin() {
         password: "wassimADV2026",
         role: "admin",
       });
-      console.log("👑 Super Admin (wa.bjaoui@gmail.com) initialisé avec succès");
+      console.log("👑 Super Admin (wa.bjaoui@gmail.com) initialized successfully");
     }
   } catch (err) {
     console.error("Super Admin check error:", err.message);
@@ -90,13 +90,20 @@ async function ensureDefaultCustomVariables() {
     const totalCount = await CustomVariable.countDocuments();
     if (totalCount === 0) {
       await CustomVariable.create({
-        name: "Adresse",
+        name: "Address",
         key: "adresse",
         type: "string",
         order: 0,
         createdBy: "System",
       });
-      console.log("📍 Variable 'Adresse' initialisée avec succès");
+      console.log("📍 Variable 'Address' initialized successfully");
+    } else {
+      const adresseVar = await CustomVariable.findOne({ name: "Adresse" });
+      if (adresseVar) {
+        adresseVar.name = "Address";
+        await adresseVar.save();
+        console.log("📍 Variable 'Adresse' renamed to 'Address'");
+      }
     }
   } catch (err) {
     console.error("Custom variable check error:", err.message);

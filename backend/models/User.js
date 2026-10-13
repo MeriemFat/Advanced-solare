@@ -12,20 +12,20 @@ const userSchema = new mongoose.Schema(
       default: "client",
     },
     permissions: {
-      // Modules / Vues visibles
+      // Visible modules / views
       canViewProjects: { type: Boolean, default: true },
       canViewContractors: { type: Boolean, default: true },
       canViewInvoices: { type: Boolean, default: true },
       canViewInterconnection: { type: Boolean, default: true },
 
-      // Périmètre des projets affichés
+      // Scope of displayed projects
       projectAccess: {
         type: String,
         enum: ["all", "assigned"],
         default: "all",
       },
 
-      // Ce qu'il peut faire (Actions)
+      // Allowed user actions
       canCreateProjects: { type: Boolean, default: true },
       canEditProjects: { type: Boolean, default: true },
       canDeleteProjects: { type: Boolean, default: false },

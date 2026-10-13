@@ -21,6 +21,7 @@ import {
   type Contractor,
   type Project,
 } from "../../lib/api";
+import { ConfirmModal } from "./ConfirmModal";
 
 interface ContractorsProps {
   onSelectProject?: (projectId: string) => void;
@@ -41,6 +42,8 @@ export default function Contractors({ onSelectProject }: ContractorsProps) {
   const [contractorProjects, setContractorProjects] = useState<Project[]>([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
   const [projectSearch, setProjectSearch] = useState("");
+  const [contractorToDelete, setContractorToDelete] = useState<Contractor | null>(null);
+  const [isDeletingContractor, setIsDeletingContractor] = useState(false);
 
   const loadContractors = () => {
     setIsLoading(true);
@@ -86,23 +89,24 @@ export default function Contractors({ onSelectProject }: ContractorsProps) {
     setShowForm(true);
   };
 
-  const handleDelete = async (contractor: Contractor) => {
-    const pCount = contractor.projectCount || 0;
-    const confirmMsg =
-      pCount > 0
-        ? `⚠️ This contractor is linked to ${pCount} project(s). Are you sure you want to delete it?`
-        : `Are you sure you want to delete contractor "${contractor.nom}"?`;
+  const handleDelete = (contractor: Contractor) => {
+    setContractorToDelete(contractor);
+  };
 
-    if (!window.confirm(confirmMsg)) return;
-
+  const handleConfirmDeleteContractor = async () => {
+    if (!contractorToDelete) return;
     try {
-      await deleteContractor(contractor._id);
-      setContractors(contractors.filter((c) => c._id !== contractor._id));
-      if (selectedContractor?._id === contractor._id) {
+      setIsDeletingContractor(true);
+      await deleteContractor(contractorToDelete._id);
+      setContractors(contractors.filter((c) => c._id !== contractorToDelete._id));
+      if (selectedContractor?._id === contractorToDelete._id) {
         setSelectedContractor(null);
       }
+      setContractorToDelete(null);
     } catch (err: any) {
       alert(err.message || "Error deleting contractor");
+    } finally {
+      setIsDeletingContractor(false);
     }
   };
 
@@ -556,6 +560,27 @@ export default function Contractors({ onSelectProject }: ContractorsProps) {
           </table>
         </div>
       )}
+
+      {/* CONFIRM DELETE CONTRACTOR MODAL */}
+      <ConfirmModal
+        isOpen={Boolean(contractorToDelete)}
+        onClose={() => {
+          if (!isDeletingContractor) setContractorToDelete(null);
+        }}
+        onConfirm={handleConfirmDeleteContractor}
+        title="Delete Contractor?"
+        message={`Are you sure you want to delete contractor "${contractorToDelete?.nom}"?`}
+        itemName={contractorToDelete?.nom}
+        itemTypeLabel="Contractor"
+        warningNote={
+          (contractorToDelete?.projectCount || 0) > 0
+            ? `⚠️ This contractor is linked to ${contractorToDelete?.projectCount} project(s).`
+            : "This action cannot be undone."
+        }
+        confirmText="Delete Contractor"
+        type="danger"
+        isLoading={isDeletingContractor}
+      />
     </div>
   );
 }

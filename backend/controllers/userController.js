@@ -22,12 +22,12 @@ export async function createSubadmin(req, res) {
   const { name, email, password, role, permissions } = req.body;
 
   if (!name || !email || !password) {
-    return res.status(400).json({ message: "Nom, email et mot de passe sont requis" });
+    return res.status(400).json({ message: "Name, email and password are required" });
   }
 
   const existing = await User.findOne({ email });
   if (existing) {
-    return res.status(409).json({ message: "Cet email est déjà utilisé" });
+    return res.status(409).json({ message: "Email already in use" });
   }
 
   const user = await User.create({
@@ -39,7 +39,7 @@ export async function createSubadmin(req, res) {
   });
 
   res.status(201).json({
-    message: "Sous-administrateur créé avec succès",
+    message: "Sub-admin created successfully",
     user: {
       _id: user._id,
       name: user.name,
@@ -57,13 +57,13 @@ export async function updateSubadmin(req, res) {
 
   const user = await User.findById(req.params.id);
   if (!user) {
-    return res.status(404).json({ message: "Utilisateur introuvable" });
+    return res.status(404).json({ message: "User not found" });
   }
 
   if (email && email.toLowerCase() !== user.email) {
     const existing = await User.findOne({ email: email.toLowerCase() });
     if (existing && existing._id.toString() !== user._id.toString()) {
-      return res.status(409).json({ message: "Cet email est déjà utilisé" });
+      return res.status(409).json({ message: "Email already in use" });
     }
     user.email = email.toLowerCase();
   }
@@ -85,7 +85,7 @@ export async function updateSubadmin(req, res) {
   await user.save();
 
   res.json({
-    message: "Sous-administrateur mis à jour avec succès",
+    message: "Sub-admin updated successfully",
     user: {
       _id: user._id,
       name: user.name,
@@ -100,13 +100,13 @@ export async function updateSubadmin(req, res) {
 // Delete a sub-admin
 export async function deleteSubadmin(req, res) {
   if (req.user.id === req.params.id) {
-    return res.status(400).json({ message: "Vous ne pouvez pas supprimer votre propre compte" });
+    return res.status(400).json({ message: "You cannot delete your own account" });
   }
 
   const user = await User.findByIdAndDelete(req.params.id);
   if (!user) {
-    return res.status(404).json({ message: "Utilisateur introuvable" });
+    return res.status(404).json({ message: "User not found" });
   }
 
-  res.json({ message: "Sous-administrateur supprimé avec succès" });
+  res.json({ message: "Sub-admin deleted successfully" });
 }

@@ -44,7 +44,7 @@ async function seed() {
       {
         name: "Residential Rooftop 10kW - Villa Horizon",
         description: "Installation of 24 bifacial solar panels with Enphase micro-inverters and Tesla Powerwall backup.",
-        status: "En cours",
+        status: "In Progress",
         date: "2026-08-15",
         contractor: createdContractors[0]._id,
         comments: [
@@ -68,7 +68,7 @@ async function seed() {
       {
         name: "Commercial Solar Carport 150kW - TechPark Hub",
         description: "Solar canopy parking structure with 8 EV charging stations integrated into the commercial microgrid.",
-        status: "En cours",
+        status: "In Progress",
         date: "2026-08-10",
         contractor: createdContractors[1]._id,
         comments: [
@@ -86,7 +86,7 @@ async function seed() {
       {
         name: "Agricultural Agrivoltaics 500kW - GreenValley Farm",
         description: "Elevated dual-axis tracking photovoltaic system enabling crop cultivation under solar panels.",
-        status: "En attente",
+        status: "Pending",
         date: "2026-08-20",
         contractor: createdContractors[2]._id,
         comments: [
@@ -104,7 +104,7 @@ async function seed() {
       {
         name: "Industrial Warehouse 250kW - Logistics Center North",
         description: "Flat roof ballast solar system with high-efficiency tier-1 panels and smart string inverters.",
-        status: "Complété",
+        status: "Completed",
         date: "2026-07-28",
         contractor: createdContractors[3]._id,
         comments: [
@@ -128,7 +128,7 @@ async function seed() {
       {
         name: "Eco-Resort Off-Grid 80kW - Mountain Lodge",
         description: "Complete off-grid hybrid system with lithium battery storage and automated backup generator.",
-        status: "En cours",
+        status: "In Progress",
         date: "2026-08-05",
         contractor: createdContractors[4]._id,
         comments: [
@@ -146,7 +146,7 @@ async function seed() {
       {
         name: "Municipal School District 300kW - Oakridge Campus",
         description: "Multi-building solar energy system across 3 elementary school roofs with smart energy monitoring.",
-        status: "En attente",
+        status: "Pending",
         date: "2026-08-18",
         contractor: createdContractors[5]._id,
         comments: [
@@ -164,7 +164,7 @@ async function seed() {
       {
         name: "Medical Clinic Emergency Backup 45kW - St. Jude Center",
         description: "Critical care rooftop solar installation with fast-transfer battery system for uninterrupted medical power.",
-        status: "Complété",
+        status: "Completed",
         date: "2026-08-01",
         contractor: createdContractors[6]._id,
         comments: [
@@ -182,7 +182,7 @@ async function seed() {
       {
         name: "Shopping Plaza Ground Mount 400kW - SunBelt Mall",
         description: "Fixed-tilt ground mount solar array on adjacent commercial parcel supplying clean energy to retail stores.",
-        status: "En cours",
+        status: "In Progress",
         date: "2026-08-12",
         contractor: createdContractors[7]._id,
         comments: [
@@ -200,7 +200,7 @@ async function seed() {
       {
         name: "Suburban Community Solar 1MW - Pine Hills Microgrid",
         description: "Shared community solar project serving 220 local residential subscribers with net metering.",
-        status: "En attente",
+        status: "Pending",
         date: "2026-08-19",
         contractor: createdContractors[8]._id,
         comments: [
@@ -218,7 +218,7 @@ async function seed() {
       {
         name: "Sports Complex Solar Canopy 120kW - City Stadium",
         description: "Curved architectural solar canopy over grandstands providing shade and generating renewable power.",
-        status: "Complété",
+        status: "Completed",
         date: "2026-07-20",
         contractor: createdContractors[0]._id,
         comments: [

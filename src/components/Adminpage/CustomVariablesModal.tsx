@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { FaTimes, FaPlus, FaTrash, FaCalendarAlt, FaHashtag, FaFont } from "react-icons/fa";
 import type { CustomVariable, CustomVariableType } from "../../lib/api";
 import { createCustomVariable, deleteCustomVariable } from "../../lib/api";
+import { ConfirmModal } from "./ConfirmModal";
 
 interface CustomVariablesModalProps {
   isOpen: boolean;
@@ -20,6 +21,8 @@ export const CustomVariablesModal: React.FC<CustomVariablesModalProps> = ({
   const [type, setType] = useState<CustomVariableType>("string");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [variableToDelete, setVariableToDelete] = useState<CustomVariable | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   if (!isOpen) return null;
 
@@ -50,25 +53,23 @@ export const CustomVariablesModal: React.FC<CustomVariablesModalProps> = ({
     }
   };
 
-  const handleDelete = async (variable: CustomVariable) => {
-    if (
-      !window.confirm(
-        `Are you sure you want to delete the variable "${variable.name}"? This column will be removed from the table.`
-      )
-    ) {
-      return;
-    }
-
+  const handleConfirmDelete = async () => {
+    if (!variableToDelete) return;
     try {
-      await deleteCustomVariable(variable._id);
-      onVariablesChange(variables.filter((v) => v._id !== variable._id));
+      setIsDeleting(true);
+      await deleteCustomVariable(variableToDelete._id);
+      onVariablesChange(variables.filter((v) => v._id !== variableToDelete._id));
+      setVariableToDelete(null);
     } catch (err: any) {
       alert(err.message || "Failed to delete variable");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   return (
-    <div
+    <>
+      <div
       style={{
         position: "fixed",
         inset: 0,
@@ -408,7 +409,7 @@ export const CustomVariablesModal: React.FC<CustomVariablesModalProps> = ({
                     </div>
 
                     <button
-                      onClick={() => handleDelete(variable)}
+                      onClick={() => setVariableToDelete(variable)}
                       style={{
                         background: "transparent",
                         border: "none",
@@ -462,5 +463,23 @@ export const CustomVariablesModal: React.FC<CustomVariablesModalProps> = ({
         </div>
       </div>
     </div>
+
+    <ConfirmModal
+      isOpen={Boolean(variableToDelete)}
+      onClose={() => {
+        if (!isDeleting) setVariableToDelete(null);
+      }}
+      onConfirm={handleConfirmDelete}
+      title="Delete Variable?"
+      message="Are you sure you want to delete this custom variable? This column and all its associated data will be removed from the table."
+      itemName={variableToDelete?.name}
+      itemTypeLabel={`Column (${variableToDelete?.type || "custom"})`}
+      warningNote="This column will be permanently removed from all projects."
+      confirmText="Delete Variable"
+      cancelText="Cancel"
+      type="danger"
+      isLoading={isDeleting}
+    />
+  </>
   );
 };

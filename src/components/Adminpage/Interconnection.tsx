@@ -23,6 +23,7 @@ import {
   type Project,
   type Contractor,
 } from "../../lib/api";
+import EnglishDateInput, { isoToUS } from "./EnglishDateInput";
 
 interface InterconnectionProps {
   onSelectProject?: (projectId: string) => void;
@@ -90,7 +91,7 @@ export default function Interconnection({ onSelectProject, canEdit = true }: Int
   // Open Edit Modal
   const handleOpenEdit = (project: Project) => {
     if (!canEdit) {
-      alert("Vous n'avez pas l'autorisation de modifier les interconnexions.");
+      alert("You do not have permission to edit interconnections.");
       return;
     }
     setEditingProject(project);
@@ -114,7 +115,7 @@ export default function Interconnection({ onSelectProject, canEdit = true }: Int
   // Quick Interconnection Status Change directly from the table
   const handleQuickStatusChange = async (project: Project, newStatus: string) => {
     if (!canEdit) {
-      alert("Vous n'avez pas l'autorisation de modifier les interconnexions.");
+      alert("You do not have permission to edit interconnections.");
       return;
     }
     const isSubmitted = ["Submitted", "Under Review", "Approved", "PTO Granted"].includes(newStatus);
@@ -840,7 +841,7 @@ export default function Interconnection({ onSelectProject, canEdit = true }: Int
                       <td style={styles.td}>
                         {p.interconnectionSubmissionDate ? (
                           <span style={{ fontSize: "13px", color: "#334155" }}>
-                            {p.interconnectionSubmissionDate}
+                            {isoToUS(p.interconnectionSubmissionDate)}
                           </span>
                         ) : (
                           <span style={{ color: "#94a3b8", fontSize: "13px" }}>—</span>
@@ -1063,8 +1064,7 @@ export default function Interconnection({ onSelectProject, canEdit = true }: Int
                 {/* Submission Date */}
                 <div>
                   <label style={styles.inputLabel}>Submission Date</label>
-                  <input
-                    type="date"
+                  <EnglishDateInput
                     value={formSubmissionDate}
                     onChange={(e) => setFormSubmissionDate(e.target.value)}
                     style={styles.textInput}
@@ -1074,8 +1074,7 @@ export default function Interconnection({ onSelectProject, canEdit = true }: Int
                 {/* Approval Date */}
                 <div>
                   <label style={styles.inputLabel}>Approval / PTO Date</label>
-                  <input
-                    type="date"
+                  <EnglishDateInput
                     value={formApprovalDate}
                     onChange={(e) => setFormApprovalDate(e.target.value)}
                     style={styles.textInput}

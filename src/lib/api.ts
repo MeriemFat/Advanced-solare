@@ -181,6 +181,28 @@ export type ProjectInput = {
   interconnectionNotes?: string;
 };
 
+export function notifySessionExpired() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("session-expired"));
+  }
+}
+
+// Suppress native browser alert dialogs for session expiration errors so that SessionExpiredModal displays seamlessly
+if (typeof window !== "undefined") {
+  const originalAlert = window.alert;
+  window.alert = function (message?: any) {
+    const str = String(message || "");
+    if (
+      str.includes("session has expired") ||
+      str.includes("Not authenticated") ||
+      str.includes("Invalid or expired token")
+    ) {
+      return;
+    }
+    return originalAlert.apply(this, arguments as any);
+  };
+}
+
 async function request<T>(
   path: string,
   options: { method?: string; body?: object; auth?: boolean } = {}
@@ -201,6 +223,10 @@ async function request<T>(
 
   const data = res.status === 204 ? null : await res.json();
   if (!res.ok) {
+    if (res.status === 401 && auth) {
+      notifySessionExpired();
+      throw new Error("Your session has expired. Please log in again.");
+    }
     throw new Error((data && data.message) || "An error occurred");
   }
   return data as T;
@@ -295,6 +321,10 @@ export async function uploadProjectFile(
 
   const data = await res.json();
   if (!res.ok) {
+    if (res.status === 401) {
+      notifySessionExpired();
+      throw new Error("Your session has expired. Please log in again.");
+    }
     throw new Error(data?.message || "Error uploading file");
   }
   return data;
@@ -332,6 +362,10 @@ export async function uploadProjectImage(
 
   const data = await res.json();
   if (!res.ok) {
+    if (res.status === 401) {
+      notifySessionExpired();
+      throw new Error("Your session has expired. Please log in again.");
+    }
     throw new Error(data?.message || "Error uploading image");
   }
   return data;
@@ -443,6 +477,10 @@ export async function exportProjectsCSV() {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) {
+    if (res.status === 401) {
+      notifySessionExpired();
+      throw new Error("Your session has expired. Please log in again.");
+    }
     throw new Error("Error exporting CSV");
   }
   const blob = await res.blob();
@@ -456,6 +494,10 @@ export async function exportProjectsPDF() {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) {
+    if (res.status === 401) {
+      notifySessionExpired();
+      throw new Error("Your session has expired. Please log in again.");
+    }
     throw new Error("Error exporting PDF");
   }
   const blob = await res.blob();
@@ -469,6 +511,10 @@ export async function exportProjectFilesZip(projectId: string, projectName?: str
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) {
+    if (res.status === 401) {
+      notifySessionExpired();
+      throw new Error("Your session has expired. Please log in again.");
+    }
     const errorData = await res.json().catch(() => null);
     throw new Error(errorData?.message || "Error exporting files ZIP");
   }
@@ -484,6 +530,10 @@ export async function exportAllUploadedFilesZip() {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) {
+    if (res.status === 401) {
+      notifySessionExpired();
+      throw new Error("Your session has expired. Please log in again.");
+    }
     throw new Error("Error exporting global ZIP");
   }
   const blob = await res.blob();
@@ -497,6 +547,10 @@ export async function downloadProjectFile(projectId: string, fileId: string, fil
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) {
+    if (res.status === 401) {
+      notifySessionExpired();
+      throw new Error("Your session has expired. Please log in again.");
+    }
     throw new Error("Error downloading file");
   }
   const blob = await res.blob();
@@ -509,6 +563,10 @@ export async function downloadProjectImage(projectId: string, imageId: string, f
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) {
+    if (res.status === 401) {
+      notifySessionExpired();
+      throw new Error("Your session has expired. Please log in again.");
+    }
     throw new Error("Error downloading image");
   }
   const blob = await res.blob();

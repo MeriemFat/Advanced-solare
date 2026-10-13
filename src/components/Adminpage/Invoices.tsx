@@ -23,6 +23,7 @@ import {
   type Project,
   type Contractor,
 } from "../../lib/api";
+import EnglishDateInput, { isoToUS } from "./EnglishDateInput";
 
 interface InvoicesProps {
   onSelectProject?: (projectId: string) => void;
@@ -83,7 +84,7 @@ export default function Invoices({ onSelectProject, canEdit = true }: InvoicesPr
   // Open Edit Invoice Modal
   const handleOpenEdit = (project: Project) => {
     if (!canEdit) {
-      alert("Vous n'avez pas l'autorisation de modifier les factures.");
+      alert("You do not have permission to edit invoices.");
       return;
     }
     setEditingProject(project);
@@ -98,7 +99,7 @@ export default function Invoices({ onSelectProject, canEdit = true }: InvoicesPr
   // Quick Status Change directly from the table
   const handleQuickStatusChange = async (project: Project, newStatus: string) => {
     if (!canEdit) {
-      alert("Vous n'avez pas l'autorisation de modifier les factures.");
+      alert("You do not have permission to edit invoices.");
       return;
     }
     const isInvoiced = newStatus === "Invoiced" || newStatus === "Paid";
@@ -640,7 +641,7 @@ export default function Invoices({ onSelectProject, canEdit = true }: InvoicesPr
                       {p.invoiceDate ? (
                         <div style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "12.5px", color: "#334155" }}>
                           <FaClock style={{ color: "#94a3b8", fontSize: "11px" }} />
-                          <span>{p.invoiceDate}</span>
+                          <span>{isoToUS(p.invoiceDate)}</span>
                         </div>
                       ) : (
                         <span style={{ color: "#94a3b8", fontSize: "13px" }}>—</span>
@@ -1044,8 +1045,7 @@ export default function Invoices({ onSelectProject, canEdit = true }: InvoicesPr
                   <label style={styles.inputLabel}>
                     Invoice Date <span style={{ fontWeight: 400, color: "#64748b", fontSize: "11.5px" }}>(Optional)</span>
                   </label>
-                  <input
-                    type="date"
+                  <EnglishDateInput
                     value={formInvoiceDate}
                     onChange={(e) => setFormInvoiceDate(e.target.value)}
                     style={styles.textInput}
