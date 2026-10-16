@@ -14,12 +14,16 @@ import {
   FaMoneyBillWave,
   FaFileInvoiceDollar,
   FaMapMarkerAlt,
+  FaPlus,
+  FaFolderPlus,
+  FaInfoCircle,
 } from "react-icons/fa";
 import {
   getProjects,
   getContractors,
   updateProjectInterconnection,
   updateProjectInvoice,
+  createProject,
   type Project,
   type Contractor,
 } from "../../lib/api";
@@ -69,6 +73,36 @@ export default function Interconnection({ onSelectProject, canEdit = true }: Int
   const [formInvoiceStatus, setFormInvoiceStatus] = useState<string>("Not Invoiced");
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
+  // Add Interconnection Modal State
+  const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
+  const [addMode, setAddMode] = useState<"existing" | "new">("existing");
+  const [addSelectedProjectId, setAddSelectedProjectId] = useState<string>("");
+  const [addProjectSearch, setAddProjectSearch] = useState<string>("");
+
+  // New Project Fields (when addMode === "new")
+  const [addNewName, setAddNewName] = useState<string>("");
+  const [addNewContractorId, setAddNewContractorId] = useState<string>("");
+  const [addNewAddress, setAddNewAddress] = useState<string>("");
+  const [addNewTargetDate, setAddNewTargetDate] = useState<string>(() =>
+    new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  );
+  const [addNewServiceType, setAddNewServiceType] = useState<string>("Plan Set Design");
+
+  // Interconnection Fields for Add Modal
+  const [addStatus, setAddStatus] = useState<string>("Submitted");
+  const [addUtility, setAddUtility] = useState<string>("");
+  const [addAppNumber, setAddAppNumber] = useState<string>("");
+  const [addSubmissionDate, setAddSubmissionDate] = useState<string>(() =>
+    new Date().toISOString().slice(0, 10)
+  );
+  const [addApprovalDate, setAddApprovalDate] = useState<string>("");
+  const [addPtoStatus, setAddPtoStatus] = useState<string>("Pending");
+  const [addFee, setAddFee] = useState<string>("");
+  const [addNotes, setAddNotes] = useState<string>("");
+  const [addInvoiceStatus, setAddInvoiceStatus] = useState<string>("Not Invoiced");
+  const [isAdding, setIsAdding] = useState<boolean>(false);
+  const [addSuccessMessage, setAddSuccessMessage] = useState<string>("");
+
   // Load Projects & Contractors
   const loadData = async () => {
     setIsLoading(true);
@@ -87,6 +121,188 @@ export default function Interconnection({ onSelectProject, canEdit = true }: Int
   useEffect(() => {
     loadData();
   }, []);
+
+  // Open Add Interconnection Modal
+  const handleOpenAddModal = (defaultProjectId?: string) => {
+    if (!canEdit) {
+      alert("You do not have permission to add interconnections.");
+      return;
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    const rand = Math.floor(1000 + Math.random() * 9000);
+    const year = new Date().getFullYear();
+
+    setIsAddModalOpen(true);
+    setAddSuccessMessage("");
+    setAddProjectSearch("");
+
+    const notStartedProj = projects.find(
+      (p) => !p.interconnectionStatus || p.interconnectionStatus === "Not Started"
+    );
+    const targetProjId = defaultProjectId || notStartedProj?._id || (projects[0]?._id || "");
+    setAddSelectedProjectId(targetProjId);
+
+    const targetProj = projects.find((p) => p._id === targetProjId);
+    if (targetProj && targetProj.interconnectionAppNumber) {
+      setAddAppNumber(targetProj.interconnectionAppNumber);
+      setAddUtility(targetProj.utilityProvider || "");
+      setAddStatus(targetProj.interconnectionStatus || "Submitted");
+      setAddSubmissionDate(targetProj.interconnectionSubmissionDate || today);
+      setAddApprovalDate(targetProj.interconnectionApprovalDate || "");
+      setAddPtoStatus(targetProj.interconnectionPtoStatus || "Pending");
+      setAddFee(
+        targetProj.interconnectionFee !== undefined && targetProj.interconnectionFee !== null
+          ? String(targetProj.interconnectionFee)
+          : ""
+      );
+      setAddNotes(targetProj.interconnectionNotes || "");
+      setAddInvoiceStatus(
+        targetProj.invoiceStatus || (targetProj.isInvoiced ? "Invoiced" : "Not Invoiced")
+      );
+    } else {
+      setAddAppNumber(`INT-${year}-${rand}`);
+      setAddUtility(targetProj?.utilityProvider || "");
+      setAddStatus("Submitted");
+      setAddSubmissionDate(today);
+      setAddApprovalDate("");
+      setAddPtoStatus("Pending");
+      setAddFee("");
+      setAddNotes("");
+      setAddInvoiceStatus("Not Invoiced");
+    }
+
+    setAddMode("existing");
+    setAddNewName("");
+    setAddNewContractorId(contractors[0]?._id || "");
+    setAddNewAddress("");
+    setAddNewTargetDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10));
+    setAddNewServiceType("Plan Set Design");
+  };
+
+  // Switch selected project in Add Modal
+  const handleSelectExistingProject = (projId: string) => {
+    setAddSelectedProjectId(projId);
+    const proj = projects.find((p) => p._id === projId);
+    if (proj) {
+      if (proj.utilityProvider) setAddUtility(proj.utilityProvider);
+      if (proj.interconnectionAppNumber) {
+        setAddAppNumber(proj.interconnectionAppNumber);
+      } else {
+        const year = new Date().getFullYear();
+        const rand = Math.floor(1000 + Math.random() * 9000);
+        setAddAppNumber(`INT-${year}-${rand}`);
+      }
+      if (proj.interconnectionStatus && proj.interconnectionStatus !== "Not Started") {
+        setAddStatus(proj.interconnectionStatus);
+      } else {
+        setAddStatus("Submitted");
+      }
+      if (proj.interconnectionSubmissionDate) setAddSubmissionDate(proj.interconnectionSubmissionDate);
+      if (proj.interconnectionApprovalDate) setAddApprovalDate(proj.interconnectionApprovalDate);
+      if (proj.interconnectionPtoStatus) setAddPtoStatus(proj.interconnectionPtoStatus);
+      if (proj.interconnectionFee) setAddFee(String(proj.interconnectionFee));
+      if (proj.interconnectionNotes) setAddNotes(proj.interconnectionNotes);
+      if (proj.invoiceStatus) setAddInvoiceStatus(proj.invoiceStatus);
+    }
+  };
+
+  // Generate Suggested ID for Add Modal
+  const handleGenerateAddAppNumber = () => {
+    const year = new Date().getFullYear();
+    const rand = Math.floor(1000 + Math.random() * 9000);
+    setAddAppNumber(`INT-${year}-${rand}`);
+  };
+
+  // Save from Add Modal
+  const handleSaveNewInterconnection = async () => {
+    if (!canEdit) {
+      alert("You do not have permission to add interconnections.");
+      return;
+    }
+
+    setIsAdding(true);
+    try {
+      const feeNum = addFee.trim() ? parseFloat(addFee) : 0;
+      const isSubmitted = ["Submitted", "Under Review", "Approved", "PTO Granted"].includes(addStatus);
+      const isInvoiced = addInvoiceStatus === "Invoiced" || addInvoiceStatus === "Paid";
+
+      if (addMode === "existing") {
+        if (!addSelectedProjectId) {
+          alert("Please select a project to attach this interconnection application to.");
+          setIsAdding(false);
+          return;
+        }
+
+        const updated = await updateProjectInterconnection(addSelectedProjectId, {
+          isInterconnectionSubmitted: isSubmitted,
+          interconnectionStatus: addStatus,
+          utilityProvider: addUtility.trim(),
+          interconnectionAppNumber: addAppNumber.trim(),
+          interconnectionSubmissionDate: addSubmissionDate,
+          interconnectionApprovalDate: addApprovalDate,
+          interconnectionPtoStatus: addPtoStatus,
+          interconnectionFee: isNaN(feeNum) ? 0 : feeNum,
+          interconnectionNotes: addNotes.trim(),
+          isInvoiced,
+          invoiceStatus: addInvoiceStatus,
+        });
+
+        setProjects((prev) =>
+          prev.map((p) => (p._id === addSelectedProjectId ? { ...p, ...updated } : p))
+        );
+
+        setAddSuccessMessage(`Interconnection application recorded for "${updated.name}"!`);
+        setTimeout(() => {
+          setIsAddModalOpen(false);
+          setAddSuccessMessage("");
+        }, 1100);
+      } else {
+        // Mode: create new project
+        if (!addNewName.trim()) {
+          alert("Please provide a project name.");
+          setIsAdding(false);
+          return;
+        }
+
+        const customFields: Record<string, any> = {};
+        if (addNewAddress.trim()) {
+          customFields["adresse"] = addNewAddress.trim();
+          customFields["address"] = addNewAddress.trim();
+        }
+
+        const created = await createProject({
+          name: addNewName.trim(),
+          contractor: addNewContractorId || "",
+          date: addNewTargetDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+          status: "Project initiation & Discovery",
+          serviceType: addNewServiceType || "Plan Set Design",
+          customFields,
+          isInterconnectionSubmitted: isSubmitted,
+          interconnectionStatus: addStatus,
+          utilityProvider: addUtility.trim(),
+          interconnectionAppNumber: addAppNumber.trim(),
+          interconnectionSubmissionDate: addSubmissionDate,
+          interconnectionApprovalDate: addApprovalDate,
+          interconnectionPtoStatus: addPtoStatus,
+          interconnectionFee: isNaN(feeNum) ? 0 : feeNum,
+          interconnectionNotes: addNotes.trim(),
+          isInvoiced,
+          invoiceStatus: addInvoiceStatus,
+        });
+
+        setProjects((prev) => [created, ...prev]);
+        setAddSuccessMessage(`New project & interconnection "${created.name}" created!`);
+        setTimeout(() => {
+          setIsAddModalOpen(false);
+          setAddSuccessMessage("");
+        }, 1100);
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to add interconnection");
+    } finally {
+      setIsAdding(false);
+    }
+  };
 
   // Open Edit Modal
   const handleOpenEdit = (project: Project) => {
@@ -402,6 +618,15 @@ export default function Interconnection({ onSelectProject, canEdit = true }: Int
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          {canEdit && (
+            <button
+              onClick={() => handleOpenAddModal()}
+              style={styles.addBtn}
+              title="Add new interconnection application"
+            >
+              <FaPlus style={{ fontSize: "12px" }} /> Add Interconnection
+            </button>
+          )}
           <button onClick={handleExportCSV} style={styles.exportBtn} title="Export current list to CSV">
             <FaDownload style={{ fontSize: "12px" }} /> Export CSV
           </button>
@@ -649,9 +874,18 @@ export default function Interconnection({ onSelectProject, canEdit = true }: Int
           <div style={styles.empty}>
             <FaNetworkWired style={{ fontSize: "40px", color: "#cbd5e1", marginBottom: "12px" }} />
             <p style={styles.emptyText}>No projects match the selected filters</p>
-            <p style={{ color: "#64748b", fontSize: "14px", marginTop: "6px" }}>
+            <p style={{ color: "#64748b", fontSize: "14px", marginTop: "6px", marginBottom: "18px" }}>
               Try adjusting your search terms, contractor selection, invoice filter, or tab.
             </p>
+            {canEdit && (
+              <button
+                onClick={() => handleOpenAddModal()}
+                style={styles.addBtn}
+                title="Add new interconnection application"
+              >
+                <FaPlus style={{ fontSize: "12px" }} /> Add Interconnection
+              </button>
+            )}
           </div>
         ) : (
           <div style={{ overflowX: "auto" }}>
@@ -859,14 +1093,25 @@ export default function Interconnection({ onSelectProject, canEdit = true }: Int
                       </td>
 
                       {/* Actions */}
-                      <td style={{ ...styles.td, textAlign: "right" }}>
-                        <button
-                          onClick={() => handleOpenEdit(p)}
-                          style={styles.editBtn}
-                          title="Edit interconnection details"
-                        >
-                          <FaEdit style={{ marginRight: "4px" }} /> Edit
-                        </button>
+                      <td style={{ ...styles.td, textAlign: "right", whiteSpace: "nowrap" }}>
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                          {canEdit && (!p.interconnectionAppNumber && (!p.interconnectionStatus || p.interconnectionStatus === "Not Started")) ? (
+                            <button
+                              onClick={() => handleOpenAddModal(p._id)}
+                              style={styles.quickAddRowBtn}
+                              title="Add interconnection for this project"
+                            >
+                              <FaPlus style={{ marginRight: "4px", fontSize: "10px" }} /> Add Interconnection
+                            </button>
+                          ) : null}
+                          <button
+                            onClick={() => handleOpenEdit(p)}
+                            style={styles.editBtn}
+                            title="Edit interconnection details"
+                          >
+                            <FaEdit style={{ marginRight: "4px" }} /> Edit
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -1129,6 +1374,414 @@ export default function Interconnection({ onSelectProject, canEdit = true }: Int
           </div>
         </div>
       )}
+
+      {/* 6. ADD INTERCONNECTION MODAL */}
+      {isAddModalOpen && (
+        <div style={styles.modalOverlay}>
+          <div style={{ ...styles.modalCard, maxWidth: "620px" }}>
+            <div style={styles.modalHeader}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div style={{ ...styles.headerIconBadge, width: "38px", height: "38px", background: "#f0f9ff", borderColor: "#bae6fd" }}>
+                  <FaPlus style={{ color: "#0284c7", fontSize: "16px" }} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: "18px", color: "#0f172a" }}>
+                    Add Interconnection Application
+                  </h3>
+                  <p style={{ margin: 0, fontSize: "13px", color: "#64748b" }}>
+                    Submit and track a new grid interconnection & PTO request.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsAddModalOpen(false)}
+                style={styles.closeModalBtn}
+                title="Close modal"
+              >
+                <FaTimes />
+              </button>
+            </div>
+
+            <div style={styles.modalBody}>
+              {/* Success Notification Banner */}
+              {addSuccessMessage && (
+                <div style={styles.successBanner}>
+                  <FaCheckCircle style={{ color: "#059669", fontSize: "16px", flexShrink: 0 }} />
+                  <span>{addSuccessMessage}</span>
+                </div>
+              )}
+
+              {/* Mode Selector Segmented Tabs */}
+              <div style={styles.modeTabsContainer}>
+                <button
+                  type="button"
+                  onClick={() => setAddMode("existing")}
+                  style={{
+                    ...styles.modeTabBtn,
+                    background: addMode === "existing" ? "#ffffff" : "transparent",
+                    color: addMode === "existing" ? "#0284c7" : "#64748b",
+                    boxShadow: addMode === "existing" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                  }}
+                >
+                  <FaFolderPlus style={{ fontSize: "14px" }} /> Link to Existing Project
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAddMode("new")}
+                  style={{
+                    ...styles.modeTabBtn,
+                    background: addMode === "new" ? "#ffffff" : "transparent",
+                    color: addMode === "new" ? "#0284c7" : "#64748b",
+                    boxShadow: addMode === "new" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                  }}
+                >
+                  <FaPlus style={{ fontSize: "13px" }} /> Create New Project
+                </button>
+              </div>
+
+              {/* Project Selection / Creation Fields */}
+              {addMode === "existing" ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  <label style={styles.inputLabel}>
+                    Select Project <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  
+                  {/* Search filter for projects if many */}
+                  {projects.length > 5 && (
+                    <input
+                      type="text"
+                      placeholder="Search projects by name or contractor..."
+                      value={addProjectSearch}
+                      onChange={(e) => setAddProjectSearch(e.target.value)}
+                      style={{ ...styles.textInput, padding: "8px 12px", fontSize: "13px" }}
+                    />
+                  )}
+
+                  <select
+                    value={addSelectedProjectId}
+                    onChange={(e) => handleSelectExistingProject(e.target.value)}
+                    style={styles.selectInput}
+                  >
+                    <option value="" disabled>-- Choose a Project --</option>
+                    {projects
+                      .filter((p) => {
+                        if (!addProjectSearch.trim()) return true;
+                        const q = addProjectSearch.toLowerCase();
+                        return (
+                          p.name.toLowerCase().includes(q) ||
+                          (p.contractor?.nom && p.contractor.nom.toLowerCase().includes(q))
+                        );
+                      })
+                      .map((p) => {
+                        const hasInt = p.interconnectionAppNumber || (p.interconnectionStatus && p.interconnectionStatus !== "Not Started");
+                        return (
+                          <option key={p._id} value={p._id}>
+                            {p.name} {p.contractor ? `(${p.contractor.nom})` : ""} — [{p.interconnectionStatus || "Not Started"}]{hasInt ? " ⚡" : ""}
+                          </option>
+                        );
+                      })}
+                  </select>
+
+                  {/* Selected Project Preview Card */}
+                  {(() => {
+                    const selectedP = projects.find((p) => p._id === addSelectedProjectId);
+                    if (!selectedP) return null;
+                    const isAlreadySubmitted = selectedP.interconnectionAppNumber || (selectedP.interconnectionStatus && selectedP.interconnectionStatus !== "Not Started");
+                    const addr = getProjectAddress(selectedP);
+
+                    return (
+                      <div style={styles.previewCard}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "8px" }}>
+                          <div>
+                            <div style={{ fontWeight: 700, color: "#0f172a", fontSize: "14px" }}>
+                              {selectedP.name}
+                            </div>
+                            {addr && (
+                              <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px", display: "flex", alignItems: "center", gap: "4px" }}>
+                                <FaMapMarkerAlt style={{ color: "#ef4444", fontSize: "11px" }} /> {addr}
+                              </div>
+                            )}
+                          </div>
+                          {selectedP.contractor?.nom && (
+                            <span style={styles.contractorBadge}>
+                              <FaBuilding style={{ fontSize: "10px", marginRight: "4px" }} />
+                              {selectedP.contractor.nom}
+                            </span>
+                          )}
+                        </div>
+
+                        {isAlreadySubmitted ? (
+                          <div style={{ ...styles.noticeBox, background: "#fffbeb", borderColor: "#fde68a", color: "#92400e" }}>
+                            <FaInfoCircle style={{ flexShrink: 0, marginTop: "2px" }} />
+                            <span>This project already has an interconnection application. Editing here will update its status and records.</span>
+                          </div>
+                        ) : (
+                          <div style={{ ...styles.noticeBox, background: "#f0fdf4", borderColor: "#bbf7d0", color: "#166534" }}>
+                            <FaCheckCircle style={{ flexShrink: 0, marginTop: "2px" }} />
+                            <span>Ready to initialize grid interconnection application for this project.</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              ) : (
+                /* Mode: Create New Project */
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px", background: "#f8fafc", padding: "14px", borderRadius: "10px", border: "1.5px solid #e2e8f0" }}>
+                  <div style={{ fontWeight: 700, fontSize: "13.5px", color: "#0f172a", marginBottom: "2px" }}>
+                    New Project Information
+                  </div>
+                  
+                  <div>
+                    <label style={styles.inputLabel}>
+                      Project Name <span style={{ color: "#ef4444" }}>*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Dupont Residence - 12kW Grid-Tied"
+                      value={addNewName}
+                      onChange={(e) => setAddNewName(e.target.value)}
+                      style={styles.textInput}
+                    />
+                  </div>
+
+                  <div style={styles.gridTwoCols}>
+                    <div>
+                      <label style={styles.inputLabel}>Contractor</label>
+                      <select
+                        value={addNewContractorId}
+                        onChange={(e) => setAddNewContractorId(e.target.value)}
+                        style={styles.selectInput}
+                      >
+                        <option value="">-- No Contractor --</option>
+                        {contractors.map((c) => (
+                          <option key={c._id} value={c._id}>{c.nom}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={styles.inputLabel}>Service Type</label>
+                      <select
+                        value={addNewServiceType}
+                        onChange={(e) => setAddNewServiceType(e.target.value)}
+                        style={styles.selectInput}
+                      >
+                        <option value="Plan Set Design">Plan Set Design</option>
+                        <option value="Interconnection Only">Interconnection Only</option>
+                        <option value="Permit Package">Permit Package</option>
+                        <option value="Full Turnkey">Full Turnkey</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={styles.gridTwoCols}>
+                    <div>
+                      <label style={styles.inputLabel}>Project Address</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 1420 Solar Way, San Jose, CA"
+                        value={addNewAddress}
+                        onChange={(e) => setAddNewAddress(e.target.value)}
+                        style={styles.textInput}
+                      />
+                    </div>
+                    <div>
+                      <label style={styles.inputLabel}>Target Completion Date</label>
+                      <EnglishDateInput
+                        value={addNewTargetDate}
+                        onChange={(e) => setAddNewTargetDate(e.target.value)}
+                        style={styles.textInput}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Interconnection Details Section */}
+              <div style={{ borderTop: "1.5px solid #f1f5f9", paddingTop: "14px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "14px" }}>
+                  <FaBolt style={{ color: "#0284c7", fontSize: "15px" }} />
+                  <span style={{ fontWeight: 700, fontSize: "14px", color: "#0f172a" }}>
+                    Grid & Utility Application Details
+                  </span>
+                </div>
+
+                <div style={styles.gridTwoCols}>
+                  {/* Status */}
+                  <div>
+                    <label style={styles.inputLabel}>Interconnection Status</label>
+                    <select
+                      value={addStatus}
+                      onChange={(e) => setAddStatus(e.target.value)}
+                      style={styles.selectInput}
+                    >
+                      <option value="Submitted">Submitted</option>
+                      <option value="Documents Gathering">Documents Gathering</option>
+                      <option value="Under Review">Under Review</option>
+                      <option value="Approved">Approved</option>
+                      <option value="PTO Granted">PTO Granted</option>
+                      <option value="Action Required">Action Required</option>
+                      <option value="Not Started">Not Started</option>
+                    </select>
+                  </div>
+
+                  {/* Utility Provider */}
+                  <div>
+                    <label style={styles.inputLabel}>Utility / Grid Operator</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Enedis, EDF OA, PG&E, SCE..."
+                      value={addUtility}
+                      onChange={(e) => setAddUtility(e.target.value)}
+                      style={styles.textInput}
+                      list="add-utilities-list"
+                    />
+                    <datalist id="add-utilities-list">
+                      <option value="Enedis" />
+                      <option value="EDF OA" />
+                      <option value="PG&E" />
+                      <option value="SCE" />
+                      <option value="SDG&E" />
+                      <option value="National Grid" />
+                      <option value="ConEd" />
+                      <option value="FPL" />
+                      <option value="Duke Energy" />
+                      <option value="Xcel Energy" />
+                    </datalist>
+                  </div>
+                </div>
+
+                <div style={styles.gridTwoCols}>
+                  {/* Application Number */}
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                      <label style={{ ...styles.inputLabel, margin: 0 }}>Application / Case ID</label>
+                      <button
+                        type="button"
+                        onClick={handleGenerateAddAppNumber}
+                        style={styles.generateBtn}
+                      >
+                        Generate ID
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="e.g. INT-2026-1042"
+                      value={addAppNumber}
+                      onChange={(e) => setAddAppNumber(e.target.value)}
+                      style={styles.textInput}
+                    />
+                  </div>
+
+                  {/* Grid Fee */}
+                  <div>
+                    <label style={styles.inputLabel}>Interconnection Fee ($ / €)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={addFee}
+                      onChange={(e) => setAddFee(e.target.value)}
+                      style={styles.textInput}
+                    />
+                  </div>
+                </div>
+
+                <div style={styles.gridTwoCols}>
+                  {/* Submission Date */}
+                  <div>
+                    <label style={styles.inputLabel}>Submission Date</label>
+                    <EnglishDateInput
+                      value={addSubmissionDate}
+                      onChange={(e) => setAddSubmissionDate(e.target.value)}
+                      style={styles.textInput}
+                    />
+                  </div>
+
+                  {/* Approval Date */}
+                  <div>
+                    <label style={styles.inputLabel}>Approval / PTO Date</label>
+                    <EnglishDateInput
+                      value={addApprovalDate}
+                      onChange={(e) => setAddApprovalDate(e.target.value)}
+                      style={styles.textInput}
+                    />
+                  </div>
+                </div>
+
+                <div style={styles.gridTwoCols}>
+                  {/* PTO Status */}
+                  <div>
+                    <label style={styles.inputLabel}>PTO Status (Permission to Operate)</label>
+                    <select
+                      value={addPtoStatus}
+                      onChange={(e) => setAddPtoStatus(e.target.value)}
+                      style={styles.selectInput}
+                    >
+                      <option value="Pending">Pending</option>
+                      <option value="Granted">Granted</option>
+                      <option value="Not Applicable">Not Applicable</option>
+                      <option value="Expired">Expired</option>
+                    </select>
+                  </div>
+
+                  {/* Invoice & Billing Relation */}
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
+                      <FaFileInvoiceDollar style={{ color: "#ff6e00", fontSize: "13px" }} />
+                      <label style={{ ...styles.inputLabel, margin: 0 }}>Invoice Status</label>
+                    </div>
+                    <select
+                      value={addInvoiceStatus}
+                      onChange={(e) => setAddInvoiceStatus(e.target.value)}
+                      style={styles.selectInput}
+                    >
+                      <option value="Not Invoiced">Not Invoiced</option>
+                      <option value="Invoiced">Invoiced</option>
+                      <option value="Paid">Paid</option>
+                      <option value="Pending">Pending</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label style={styles.inputLabel}>Notes & Instructions</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Specific requirements, utility contact details, meter reference..."
+                    value={addNotes}
+                    onChange={(e) => setAddNotes(e.target.value)}
+                    style={styles.textareaInput}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div style={styles.modalFooter}>
+              <button
+                onClick={() => setIsAddModalOpen(false)}
+                style={styles.cancelBtn}
+                disabled={isAdding}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveNewInterconnection}
+                style={styles.saveBtn}
+                disabled={isAdding}
+              >
+                {isAdding
+                  ? "Saving..."
+                  : addMode === "existing"
+                  ? "Add Interconnection"
+                  : "Create Project & Interconnection"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1186,6 +1839,86 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600,
     cursor: "pointer",
     boxShadow: "0 2px 8px rgba(2, 132, 199, 0.25)",
+  },
+  addBtn: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "8px 18px",
+    background: "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
+    color: "#ffffff",
+    border: "none",
+    borderRadius: "8px",
+    fontSize: "13.5px",
+    fontWeight: 700,
+    cursor: "pointer",
+    boxShadow: "0 2px 10px rgba(2, 132, 199, 0.35)",
+    transition: "all 0.2s ease",
+  },
+  quickAddRowBtn: {
+    display: "inline-flex",
+    alignItems: "center",
+    padding: "5px 10px",
+    background: "#eff6ff",
+    border: "1.5px solid #bfdbfe",
+    borderRadius: "6px",
+    fontSize: "12px",
+    fontWeight: 700,
+    color: "#1d4ed8",
+    cursor: "pointer",
+    transition: "all 0.15s ease",
+  },
+  modeTabsContainer: {
+    display: "flex",
+    background: "#f1f5f9",
+    borderRadius: "10px",
+    padding: "4px",
+    gap: "6px",
+  },
+  modeTabBtn: {
+    flex: 1,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    padding: "9px 14px",
+    borderRadius: "8px",
+    border: "none",
+    fontSize: "13px",
+    fontWeight: 700,
+    cursor: "pointer",
+    transition: "all 0.15s ease",
+  },
+  previewCard: {
+    background: "#f8fafc",
+    border: "1.5px solid #e2e8f0",
+    borderRadius: "10px",
+    padding: "12px 14px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
+  },
+  noticeBox: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    fontSize: "12px",
+    fontWeight: 600,
+    padding: "8px 12px",
+    borderRadius: "8px",
+    border: "1px solid",
+  },
+  successBanner: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    background: "#ecfdf5",
+    border: "1.5px solid #a7f3d0",
+    color: "#065f46",
+    padding: "10px 14px",
+    borderRadius: "8px",
+    fontSize: "13.5px",
+    fontWeight: 600,
   },
   statsGrid: {
     display: "grid",

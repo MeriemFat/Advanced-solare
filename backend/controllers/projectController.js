@@ -188,6 +188,23 @@ export async function createProject(req, res) {
     seTime: seTime || "",
     structEngi: structEngi || "",
     customFields: customFields || {},
+    isInvoiced: req.body.isInvoiced !== undefined ? Boolean(req.body.isInvoiced) : false,
+    invoiceStatus: req.body.invoiceStatus || "Not Invoiced",
+    invoiceNumber: req.body.invoiceNumber ? String(req.body.invoiceNumber).trim() : "",
+    invoiceDate: req.body.invoiceDate || "",
+    invoiceAmount: Number(req.body.invoiceAmount) || 0,
+    invoiceNotes: req.body.invoiceNotes || "",
+    isInterconnectionSubmitted: req.body.isInterconnectionSubmitted !== undefined
+      ? Boolean(req.body.isInterconnectionSubmitted)
+      : ["Submitted", "Under Review", "Approved", "PTO Granted"].includes(req.body.interconnectionStatus),
+    interconnectionStatus: req.body.interconnectionStatus || "Not Started",
+    utilityProvider: req.body.utilityProvider ? String(req.body.utilityProvider).trim() : "",
+    interconnectionAppNumber: req.body.interconnectionAppNumber ? String(req.body.interconnectionAppNumber).trim() : "",
+    interconnectionSubmissionDate: req.body.interconnectionSubmissionDate || "",
+    interconnectionApprovalDate: req.body.interconnectionApprovalDate || "",
+    interconnectionPtoStatus: req.body.interconnectionPtoStatus || "Pending",
+    interconnectionFee: Number(req.body.interconnectionFee) || 0,
+    interconnectionNotes: req.body.interconnectionNotes || "",
   });
   await project.populate("contractor", CONTRACTOR_FIELDS);
 
